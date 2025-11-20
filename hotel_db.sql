@@ -1,0 +1,520 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Máy chủ: 127.0.0.1
+-- Thời gian đã tạo: Th10 20, 2025 lúc 02:53 PM
+-- Phiên bản máy phục vụ: 10.4.32-MariaDB
+-- Phiên bản PHP: 8.2.12
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Cơ sở dữ liệu: `hotel_db`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `guests`
+--
+
+CREATE TABLE `guests` (
+  `guest_id` int(11) NOT NULL,
+  `full_name` varchar(150) NOT NULL,
+  `email` varchar(150) NOT NULL,
+  `phone` varchar(20) NOT NULL,
+  `dob` date NOT NULL,
+  `id_type` varchar(50) NOT NULL,
+  `id_number` varchar(50) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `invoice`
+--
+
+CREATE TABLE `invoice` (
+  `invoice_id` int(11) NOT NULL,
+  `stay_id` int(11) NOT NULL,
+  `guest_id` int(11) NOT NULL,
+  `currency` varchar(10) NOT NULL DEFAULT 'VND',
+  `balance` decimal(18,2) NOT NULL DEFAULT 0.00,
+  `created_by_user_id` int(11) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `invoice_items`
+--
+
+CREATE TABLE `invoice_items` (
+  `invoice_item_id` int(11) NOT NULL,
+  `invoice_id` int(11) NOT NULL,
+  `item_id` int(11) NOT NULL,
+  `amount` decimal(18,2) NOT NULL,
+  `posted_date` datetime NOT NULL DEFAULT current_timestamp(),
+  `posted_by_user_id` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `items`
+--
+
+CREATE TABLE `items` (
+  `item_id` int(11) NOT NULL,
+  `item_name` varchar(255) NOT NULL,
+  `price` decimal(18,2) NOT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 0,
+  `status` varchar(30) NOT NULL DEFAULT 'Còn'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `payments`
+--
+
+CREATE TABLE `payments` (
+  `payment_id` int(11) NOT NULL,
+  `invoice_id` int(11) NOT NULL,
+  `amount` decimal(18,2) NOT NULL,
+  `payment_method` varchar(50) NOT NULL,
+  `status` varchar(50) NOT NULL DEFAULT 'Completed',
+  `payment_date` datetime NOT NULL DEFAULT current_timestamp(),
+  `created_by_user_id` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `reservations`
+--
+
+CREATE TABLE `reservations` (
+  `reservation_id` int(11) NOT NULL,
+  `guest_id` int(11) NOT NULL,
+  `status` varchar(50) NOT NULL DEFAULT 'Confirmed',
+  `arrival_date` date NOT NULL,
+  `departure_date` date NOT NULL,
+  `num_guests` int(11) NOT NULL DEFAULT 1,
+  `total_estimated` decimal(18,2) NOT NULL DEFAULT 0.00,
+  `created_by_user_id` int(11) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `reservation_rooms`
+--
+
+CREATE TABLE `reservation_rooms` (
+  `id` int(11) NOT NULL,
+  `reservation_id` int(11) NOT NULL,
+  `room_id` int(11) DEFAULT NULL,
+  `room_type_id` int(11) NOT NULL,
+  `price` decimal(18,2) NOT NULL DEFAULT 0.00
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `roles`
+--
+
+CREATE TABLE `roles` (
+  `role_id` int(11) NOT NULL,
+  `role_name` varchar(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `rooms`
+--
+
+CREATE TABLE `rooms` (
+  `room_id` int(11) NOT NULL,
+  `room_number` varchar(255) NOT NULL,
+  `room_type_id` int(11) NOT NULL,
+  `floor` varchar(255) DEFAULT NULL,
+  `status_id` int(11) NOT NULL,
+  `bed_count` int(11) NOT NULL DEFAULT 1,
+  `max_occupancy` int(11) NOT NULL DEFAULT 2
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `rooms`
+--
+
+INSERT INTO `rooms` (`room_id`, `room_number`, `room_type_id`, `floor`, `status_id`, `bed_count`, `max_occupancy`) VALUES
+(1, '101', 1, '1', 1, 1, 2),
+(2, '201', 2, '2', 1, 2, 4),
+(3, '301', 3, '3', 1, 4, 8);
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `room_statuses`
+--
+
+CREATE TABLE `room_statuses` (
+  `status_id` int(11) NOT NULL,
+  `name` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `room_statuses`
+--
+
+INSERT INTO `room_statuses` (`status_id`, `name`) VALUES
+(1, 'Còn Trống'),
+(2, 'Đang dùng phòng'),
+(3, 'Đã trả phòng'),
+(4, 'Dọn dẹp'),
+(5, 'Đang bảo trì');
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `room_types`
+--
+
+CREATE TABLE `room_types` (
+  `room_type_id` int(11) NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `capacity` int(11) NOT NULL DEFAULT 1,
+  `base_price` double DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `room_types`
+--
+
+INSERT INTO `room_types` (`room_type_id`, `name`, `capacity`, `base_price`) VALUES
+(1, 'Standard', 2, 300),
+(2, 'Deluxe', 2, 700),
+(3, 'Vip', 2, 1500);
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `stays`
+--
+
+CREATE TABLE `stays` (
+  `stay_id` int(11) NOT NULL,
+  `reservation_id` int(11) NOT NULL,
+  `guest_id` int(11) NOT NULL,
+  `room_id` int(11) NOT NULL,
+  `checkin_time` datetime NOT NULL,
+  `checkout_time` datetime NOT NULL,
+  `total_cost` decimal(18,2) NOT NULL DEFAULT 0.00,
+  `status` varchar(50) NOT NULL DEFAULT 'Checked-in',
+  `created_by_user_id` int(11) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `users`
+--
+
+CREATE TABLE `users` (
+  `user_id` int(11) NOT NULL,
+  `username` varchar(100) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `full_name` varchar(150) NOT NULL,
+  `role_id` int(11) NOT NULL,
+  `email` varchar(150) NOT NULL,
+  `phone` varchar(20) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Chỉ mục cho các bảng đã đổ
+--
+
+--
+-- Chỉ mục cho bảng `guests`
+--
+ALTER TABLE `guests`
+  ADD PRIMARY KEY (`guest_id`),
+  ADD UNIQUE KEY `guest_id` (`guest_id`),
+  ADD UNIQUE KEY `email` (`email`),
+  ADD UNIQUE KEY `phone` (`phone`);
+
+--
+-- Chỉ mục cho bảng `invoice`
+--
+ALTER TABLE `invoice`
+  ADD PRIMARY KEY (`invoice_id`),
+  ADD UNIQUE KEY `invoice_id` (`invoice_id`),
+  ADD KEY `stay_id` (`stay_id`),
+  ADD KEY `guest_id` (`guest_id`),
+  ADD KEY `created_by_user_id` (`created_by_user_id`);
+
+--
+-- Chỉ mục cho bảng `invoice_items`
+--
+ALTER TABLE `invoice_items`
+  ADD PRIMARY KEY (`invoice_item_id`),
+  ADD UNIQUE KEY `invoice_item_id` (`invoice_item_id`),
+  ADD KEY `invoice_id` (`invoice_id`),
+  ADD KEY `posted_by_user_id` (`posted_by_user_id`),
+  ADD KEY `item_id` (`item_id`);
+
+--
+-- Chỉ mục cho bảng `items`
+--
+ALTER TABLE `items`
+  ADD PRIMARY KEY (`item_id`),
+  ADD UNIQUE KEY `item_id` (`item_id`);
+
+--
+-- Chỉ mục cho bảng `payments`
+--
+ALTER TABLE `payments`
+  ADD PRIMARY KEY (`payment_id`),
+  ADD UNIQUE KEY `payment_id` (`payment_id`),
+  ADD KEY `created_by_user_id` (`created_by_user_id`),
+  ADD KEY `invoice_id` (`invoice_id`);
+
+--
+-- Chỉ mục cho bảng `reservations`
+--
+ALTER TABLE `reservations`
+  ADD PRIMARY KEY (`reservation_id`),
+  ADD UNIQUE KEY `reservation_id` (`reservation_id`),
+  ADD KEY `created_by_user_id` (`created_by_user_id`),
+  ADD KEY `guest_id` (`guest_id`);
+
+--
+-- Chỉ mục cho bảng `reservation_rooms`
+--
+ALTER TABLE `reservation_rooms`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `id` (`id`),
+  ADD KEY `reservation_id` (`reservation_id`),
+  ADD KEY `room_id` (`room_id`),
+  ADD KEY `room_type_id` (`room_type_id`);
+
+--
+-- Chỉ mục cho bảng `roles`
+--
+ALTER TABLE `roles`
+  ADD PRIMARY KEY (`role_id`),
+  ADD UNIQUE KEY `role_id` (`role_id`);
+
+--
+-- Chỉ mục cho bảng `rooms`
+--
+ALTER TABLE `rooms`
+  ADD PRIMARY KEY (`room_id`),
+  ADD UNIQUE KEY `room_id` (`room_id`),
+  ADD UNIQUE KEY `room_number` (`room_number`),
+  ADD KEY `room_type_id` (`room_type_id`),
+  ADD KEY `status_id` (`status_id`);
+
+--
+-- Chỉ mục cho bảng `room_statuses`
+--
+ALTER TABLE `room_statuses`
+  ADD PRIMARY KEY (`status_id`),
+  ADD UNIQUE KEY `status_id` (`status_id`);
+
+--
+-- Chỉ mục cho bảng `room_types`
+--
+ALTER TABLE `room_types`
+  ADD PRIMARY KEY (`room_type_id`),
+  ADD UNIQUE KEY `room_type_id` (`room_type_id`);
+
+--
+-- Chỉ mục cho bảng `stays`
+--
+ALTER TABLE `stays`
+  ADD PRIMARY KEY (`stay_id`),
+  ADD UNIQUE KEY `stay_id` (`stay_id`),
+  ADD KEY `reservation_id` (`reservation_id`),
+  ADD KEY `guest_id` (`guest_id`),
+  ADD KEY `room_id` (`room_id`),
+  ADD KEY `created_by_user_id` (`created_by_user_id`);
+
+--
+-- Chỉ mục cho bảng `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`user_id`),
+  ADD UNIQUE KEY `user_id` (`user_id`),
+  ADD UNIQUE KEY `username` (`username`),
+  ADD UNIQUE KEY `email` (`email`),
+  ADD UNIQUE KEY `phone` (`phone`),
+  ADD KEY `role_id` (`role_id`);
+
+--
+-- AUTO_INCREMENT cho các bảng đã đổ
+--
+
+--
+-- AUTO_INCREMENT cho bảng `guests`
+--
+ALTER TABLE `guests`
+  MODIFY `guest_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `invoice`
+--
+ALTER TABLE `invoice`
+  MODIFY `invoice_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `invoice_items`
+--
+ALTER TABLE `invoice_items`
+  MODIFY `invoice_item_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `items`
+--
+ALTER TABLE `items`
+  MODIFY `item_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `payments`
+--
+ALTER TABLE `payments`
+  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `reservations`
+--
+ALTER TABLE `reservations`
+  MODIFY `reservation_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `reservation_rooms`
+--
+ALTER TABLE `reservation_rooms`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `roles`
+--
+ALTER TABLE `roles`
+  MODIFY `role_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `rooms`
+--
+ALTER TABLE `rooms`
+  MODIFY `room_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT cho bảng `room_statuses`
+--
+ALTER TABLE `room_statuses`
+  MODIFY `status_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
+-- AUTO_INCREMENT cho bảng `room_types`
+--
+ALTER TABLE `room_types`
+  MODIFY `room_type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT cho bảng `stays`
+--
+ALTER TABLE `stays`
+  MODIFY `stay_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT cho bảng `users`
+--
+ALTER TABLE `users`
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- Các ràng buộc cho các bảng đã đổ
+--
+
+--
+-- Các ràng buộc cho bảng `invoice`
+--
+ALTER TABLE `invoice`
+  ADD CONSTRAINT `invoice_ibfk_1` FOREIGN KEY (`stay_id`) REFERENCES `stays` (`stay_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `invoice_ibfk_2` FOREIGN KEY (`guest_id`) REFERENCES `guests` (`guest_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `invoice_ibfk_3` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+--
+-- Các ràng buộc cho bảng `invoice_items`
+--
+ALTER TABLE `invoice_items`
+  ADD CONSTRAINT `invoice_items_ibfk_1` FOREIGN KEY (`invoice_id`) REFERENCES `invoice` (`invoice_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `invoice_items_ibfk_2` FOREIGN KEY (`posted_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `invoice_items_ibfk_3` FOREIGN KEY (`item_id`) REFERENCES `items` (`item_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+--
+-- Các ràng buộc cho bảng `payments`
+--
+ALTER TABLE `payments`
+  ADD CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `payments_ibfk_2` FOREIGN KEY (`invoice_id`) REFERENCES `invoice` (`invoice_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+--
+-- Các ràng buộc cho bảng `reservations`
+--
+ALTER TABLE `reservations`
+  ADD CONSTRAINT `reservations_ibfk_1` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `reservations_ibfk_2` FOREIGN KEY (`guest_id`) REFERENCES `guests` (`guest_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+--
+-- Các ràng buộc cho bảng `reservation_rooms`
+--
+ALTER TABLE `reservation_rooms`
+  ADD CONSTRAINT `reservation_rooms_ibfk_1` FOREIGN KEY (`reservation_id`) REFERENCES `reservations` (`reservation_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `reservation_rooms_ibfk_2` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`room_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `reservation_rooms_ibfk_3` FOREIGN KEY (`room_type_id`) REFERENCES `room_types` (`room_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+--
+-- Các ràng buộc cho bảng `rooms`
+--
+ALTER TABLE `rooms`
+  ADD CONSTRAINT `rooms_ibfk_1` FOREIGN KEY (`room_type_id`) REFERENCES `room_types` (`room_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `rooms_ibfk_2` FOREIGN KEY (`status_id`) REFERENCES `room_statuses` (`status_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+--
+-- Các ràng buộc cho bảng `stays`
+--
+ALTER TABLE `stays`
+  ADD CONSTRAINT `stays_ibfk_1` FOREIGN KEY (`reservation_id`) REFERENCES `reservations` (`reservation_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `stays_ibfk_2` FOREIGN KEY (`guest_id`) REFERENCES `guests` (`guest_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `stays_ibfk_3` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`room_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  ADD CONSTRAINT `stays_ibfk_4` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+--
+-- Các ràng buộc cho bảng `users`
+--
+ALTER TABLE `users`
+  ADD CONSTRAINT `users_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

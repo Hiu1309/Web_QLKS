@@ -3,6 +3,7 @@ import { Header } from "./components/Header";
 import { Dashboard } from "./components/Dashboard";
 import { RoomManagement } from "./components/RoomManagement";
 import { ReservationManagement } from "./components/ReservationManagement";
+import { InvoiceManagement } from "./components/InvoiceManagement";
 import { GuestManagement } from "./components/GuestManagement";
 import { ServicesManagement } from "./components/ServicesManagement";
 import { EmployeeManagement } from "./components/EmployeeManagement";
@@ -15,6 +16,7 @@ export type ViewType =
   | "dashboard"
   | "rooms"
   | "reservations"
+  | "invoices"
   | "guests"
   | "services"
   | "employees";
@@ -36,33 +38,39 @@ export default function App() {
   const handleLogin = (email: string, password: string) => {
     // Validate against test accounts
     const account = testAccounts.find(
-      acc => acc.email === email && acc.password === password
+      (acc) => acc.email === email && acc.password === password
     );
-    
+
     if (account) {
       setCurrentUser({
         name: account.name,
         email: account.email,
-        role: account.role
+        role: account.role,
       });
       setIsAuthenticated(true);
       toast.success(`Chào mừng ${account.name}!`, {
-        description: `Đăng nhập thành công với vai trò ${account.label}`
+        description: `Đăng nhập thành công với vai trò ${account.label}`,
       });
     } else {
-      toast.error('Đăng nhập thất bại', {
-        description: 'Email hoặc mật khẩu không đúng'
+      toast.error("Đăng nhập thất bại", {
+        description: "Email hoặc mật khẩu không đúng",
       });
     }
   };
 
-  const handleRegister = (name: string, email: string, password: string, phone: string, role: string) => {
+  const handleRegister = (
+    name: string,
+    email: string,
+    password: string,
+    phone: string,
+    role: string
+  ) => {
     // Mock register - in production, send to backend
-    console.log('Register:', { name, email, password, phone, role });
+    console.log("Register:", { name, email, password, phone, role });
     setCurrentUser({
       name: name,
       email: email,
-      role: role
+      role: role,
     });
     setIsAuthenticated(true);
   };
@@ -71,8 +79,8 @@ export default function App() {
     setIsAuthenticated(false);
     setCurrentUser(null);
     setCurrentView("dashboard");
-    toast.info('Đã đăng xuất', {
-      description: 'Hẹn gặp lại bạn!'
+    toast.info("Đã đăng xuất", {
+      description: "Hẹn gặp lại bạn!",
     });
   };
 
@@ -84,6 +92,8 @@ export default function App() {
         return <RoomManagement />;
       case "reservations":
         return <ReservationManagement />;
+      case "invoices":
+        return <InvoiceManagement />;
       case "guests":
         return <GuestManagement />;
       case "services":
@@ -100,9 +110,15 @@ export default function App() {
     return (
       <>
         {authView === "login" ? (
-          <Login onLogin={handleLogin} onSwitchToRegister={() => setAuthView("register")} />
+          <Login
+            onLogin={handleLogin}
+            onSwitchToRegister={() => setAuthView("register")}
+          />
         ) : (
-          <Register onRegister={handleRegister} onSwitchToLogin={() => setAuthView("login")} />
+          <Register
+            onRegister={handleRegister}
+            onSwitchToLogin={() => setAuthView("login")}
+          />
         )}
         <Toaster />
       </>
@@ -118,9 +134,7 @@ export default function App() {
           onLogout={handleLogout}
           currentUser={currentUser || undefined}
         />
-        <main className="flex-1">
-          {renderCurrentView()}
-        </main>
+        <main className="flex-1">{renderCurrentView()}</main>
       </div>
       <Toaster />
     </>

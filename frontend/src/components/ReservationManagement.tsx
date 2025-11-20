@@ -6,11 +6,23 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from './ui/alert-dialog';
 import { Label } from './ui/label';
 import { BookingDialog } from './BookingDialog';
-import { Search, Plus, Eye, Edit, Calendar } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
-type ReservationStatus = 'confirmed' | 'checked-in' | 'checked-out' | 'cancelled' | 'pending';
+type ReservationStatus = 'checked-in' | 'checked-out';
 
 interface Reservation {
   id: string;
@@ -57,7 +69,7 @@ const reservations: Reservation[] = [
     nights: 3,
     guests: 1,
     totalAmount: 73500,
-    status: 'confirmed',
+    status: 'checked-in',
     bookingDate: '2024-12-18'
   },
   {
@@ -87,7 +99,7 @@ const reservations: Reservation[] = [
     nights: 3,
     guests: 2,
     totalAmount: 73500,
-    status: 'pending',
+    status: 'checked-in',
     bookingDate: '2024-12-19'
   },
   {
@@ -102,7 +114,7 @@ const reservations: Reservation[] = [
     nights: 3,
     guests: 2,
     totalAmount: 44160,
-    status: 'confirmed',
+    status: 'checked-in',
     bookingDate: '2024-12-17'
   },
   {
@@ -117,25 +129,35 @@ const reservations: Reservation[] = [
     nights: 3,
     guests: 4,
     totalAmount: 122700,
-    status: 'pending',
+    status: 'checked-in',
     bookingDate: '2024-12-20'
   }
 ];
 
 const statusColors = {
-  confirmed: 'bg-blue-100 text-blue-800',
   'checked-in': 'bg-green-100 text-green-800',
-  'checked-out': 'bg-gray-100 text-gray-800',
-  cancelled: 'bg-red-100 text-red-800',
-  pending: 'bg-yellow-100 text-yellow-800'
+  'checked-out': 'bg-gray-100 text-gray-800'
 };
 
 export function ReservationManagement() {
+  const [reservationsList, setReservationsList] = useState(reservations);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
 
-  const filteredReservations = reservations.filter(reservation => {
+  const handleCheckout = (reservationId: string) => {
+    setReservationsList(reservationsList.map(res => 
+      res.id === reservationId ? { ...res, status: 'checked-out' as ReservationStatus } : res
+    ));
+    toast.success('Trả phòng thành công!');
+  };
+
+  const handleDelete = (reservationId: string) => {
+    setReservationsList(reservationsList.filter(res => res.id !== reservationId));
+    toast.success('Đã xóa đặt phòng!');
+  };
+
+  const filteredReservations = reservationsList.filter(reservation => {
     const matchesSearch = reservation.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          reservation.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          reservation.id.toLowerCase().includes(searchTerm.toLowerCase());
@@ -179,11 +201,8 @@ export function ReservationManagement() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất Cả Trạng Thái</SelectItem>
-            <SelectItem value="pending">Chờ Xác Nhận</SelectItem>
-            <SelectItem value="confirmed">Đã Xác Nhận</SelectItem>
             <SelectItem value="checked-in">Đã Nhận Phòng</SelectItem>
             <SelectItem value="checked-out">Đã Trả Phòng</SelectItem>
-            <SelectItem value="cancelled">Đã Hủy</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -203,7 +222,6 @@ export function ReservationManagement() {
                 <TableHead className="text-slate-600">Nhận Phòng</TableHead>
                 <TableHead className="text-slate-600">Trả Phòng</TableHead>
                 <TableHead className="text-slate-600">Đêm</TableHead>
-                <TableHead className="text-slate-600">Tổng Tiền</TableHead>
                 <TableHead className="text-slate-600">Trạng Thái</TableHead>
                 <TableHead className="text-slate-600">Thao Tác</TableHead>
               </TableRow>
@@ -227,14 +245,11 @@ export function ReservationManagement() {
                   <TableCell className="text-slate-600">{reservation.checkIn}</TableCell>
                   <TableCell className="text-slate-600">{reservation.checkOut}</TableCell>
                   <TableCell className="text-slate-600">{reservation.nights}</TableCell>
-                  <TableCell className="font-medium text-emerald-600">₹{reservation.totalAmount.toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge className={statusColors[reservation.status]}>
-                      {reservation.status === 'confirmed' ? 'Đã Xác Nhận' :
-                       reservation.status === 'checked-in' ? 'Đã Nhận Phòng' :
+                      {reservation.status === 'checked-in' ? 'Đã Nhận Phòng' :
                        reservation.status === 'checked-out' ? 'Đã Trả Phòng' :
-                       reservation.status === 'cancelled' ? 'Đã Hủy' :
-                       'Chờ Xác Nhận'}
+                       ''}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -264,11 +279,9 @@ export function ReservationManagement() {
                                 <div>
                                   <Label className="text-slate-600">Trạng Thái</Label>
                                   <Badge className={`mt-1 ${statusColors[selectedReservation.status]}`}>
-                                    {selectedReservation.status === 'confirmed' ? 'Đã Xác Nhận' :
-                                     selectedReservation.status === 'checked-in' ? 'Đã Nhận Phòng' :
+                                    {selectedReservation.status === 'checked-in' ? 'Đã Nhận Phòng' :
                                      selectedReservation.status === 'checked-out' ? 'Đã Trả Phòng' :
-                                     selectedReservation.status === 'cancelled' ? 'Đã Hủy' :
-                                     'Chờ Xác Nhận'}
+                                     ''}
                                   </Badge>
                                 </div>
                                 <div>
@@ -305,13 +318,10 @@ export function ReservationManagement() {
                                 </div>
                               </div>
                               <div className="flex gap-2 pt-4">
-                                {selectedReservation.status === 'confirmed' && (
-                                  <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700">Nhận Phòng</Button>
-                                )}
                                 {selectedReservation.status === 'checked-in' && (
-                                  <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700">Trả Phòng</Button>
+                                  <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => handleCheckout(selectedReservation.id)}>Trả Phòng</Button>
                                 )}
-                                <Button size="sm" variant="outline" className="flex-1 border-slate-300">Chỉnh Sửa</Button>
+                                <Button size="sm" variant="outline" className="flex-1 border-slate-300" onClick={() => handleDelete(selectedReservation.id)}>Xóa</Button>
                               </div>
                             </div>
                           )}

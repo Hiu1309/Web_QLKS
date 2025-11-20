@@ -8,7 +8,8 @@ import {
   UserCog,
   LogOut,
   User,
-  ChevronDown
+  ChevronDown,
+  Receipt
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ViewType } from '../App';
@@ -32,6 +33,7 @@ const menuItems = [
   { id: 'dashboard' as ViewType, label: 'Tổng quan', icon: LayoutDashboard },
   { id: 'rooms' as ViewType, label: 'Phòng', icon: Bed },
   { id: 'reservations' as ViewType, label: 'Đặt phòng', icon: Calendar },
+  { id: 'invoices' as ViewType, label: 'Hóa đơn', icon: Receipt },
   { id: 'guests' as ViewType, label: 'Khách hàng', icon: Users },
   { id: 'services' as ViewType, label: 'Dịch vụ', icon: Sparkles },
   { id: 'employees' as ViewType, label: 'Nhân viên', icon: UserCog },
