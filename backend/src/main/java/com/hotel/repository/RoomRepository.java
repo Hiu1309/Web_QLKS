@@ -9,15 +9,11 @@ import java.util.List;
 
 public interface RoomRepository extends JpaRepository<Room, Integer> {
 
-    List<Room> findByRoomNumberContainingIgnoreCase(String number);
-
     @Query("SELECT r FROM Room r " +
-           "WHERE (:search IS NULL OR LOWER(r.roomNumber) LIKE %:search% OR LOWER(r.roomType.name) LIKE %:search%) " +
-           "AND (:statusId IS NULL OR r.status.statusId = :statusId) " +
-           "AND (:roomTypeId IS NULL OR r.roomType.roomTypeId = :roomTypeId)")
-    List<Room> findFiltered(
-        @Param("search") String search,
-        @Param("statusId") Integer statusId,
-        @Param("roomTypeId") Integer roomTypeId
-    );
+           "WHERE (:roomNumber IS NULL OR r.roomNumber LIKE %:roomNumber%) " +
+           "AND (:roomTypeId IS NULL OR r.roomType.roomTypeId = :roomTypeId) " +
+           "AND (:statusId IS NULL OR r.status.statusId = :statusId)")
+    List<Room> findFiltered(@Param("roomNumber") String roomNumber,
+                            @Param("roomTypeId") Integer roomTypeId,
+                            @Param("statusId") Integer statusId);
 }

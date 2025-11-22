@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th10 20, 2025 lúc 02:53 PM
+-- Thời gian đã tạo: Th10 22, 2025 lúc 09:53 AM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.2.12
 
@@ -154,18 +154,20 @@ CREATE TABLE `rooms` (
   `room_type_id` int(11) NOT NULL,
   `floor` varchar(255) DEFAULT NULL,
   `status_id` int(11) NOT NULL,
-  `bed_count` int(11) NOT NULL DEFAULT 1,
-  `max_occupancy` int(11) NOT NULL DEFAULT 2
+  `image` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `rooms`
 --
 
-INSERT INTO `rooms` (`room_id`, `room_number`, `room_type_id`, `floor`, `status_id`, `bed_count`, `max_occupancy`) VALUES
-(1, '101', 1, '1', 1, 1, 2),
-(2, '201', 2, '2', 1, 2, 4),
-(3, '301', 3, '3', 1, 4, 8);
+INSERT INTO `rooms` (`room_id`, `room_number`, `room_type_id`, `floor`, `status_id`, `image`) VALUES
+(1, '101', 1, '1', 1, 'uploads/rooms/standard.jpg\n'),
+(2, '102', 5, '1', 4, 'uploads/rooms/standard.jpg'),
+(3, '201', 2, '2', 2, 'uploads/rooms/deluxe.jpg'),
+(4, '202', 5, '2', 5, 'uploads/rooms/deluxe.jpg'),
+(5, '301', 3, '3', 3, 'uploads/rooms/vip.jpg'),
+(21, '203', 1, '2', 1, 'uploads/rooms/vip.jpg');
 
 -- --------------------------------------------------------
 
@@ -198,18 +200,25 @@ INSERT INTO `room_statuses` (`status_id`, `name`) VALUES
 CREATE TABLE `room_types` (
   `room_type_id` int(11) NOT NULL,
   `name` varchar(255) DEFAULT NULL,
-  `capacity` int(11) NOT NULL DEFAULT 1,
-  `base_price` double DEFAULT NULL
+  `max_occupancy` int(11) NOT NULL,
+  `base_price` double DEFAULT NULL,
+  `bed_count` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `room_types`
 --
 
-INSERT INTO `room_types` (`room_type_id`, `name`, `capacity`, `base_price`) VALUES
-(1, 'Standard', 2, 300),
-(2, 'Deluxe', 2, 700),
-(3, 'Vip', 2, 1500);
+INSERT INTO `room_types` (`room_type_id`, `name`, `max_occupancy`, `base_price`, `bed_count`) VALUES
+(1, 'Standard', 2, 300000, 1),
+(2, 'Deluxe', 2, 700000, 1),
+(3, 'Vip', 2, 1500000, 1),
+(4, 'Standard 2', 4, 550000, 2),
+(5, 'Deluxe 2', 4, 1350000, 2),
+(6, 'Vip 2', 4, 2950000, 2),
+(7, 'Standard 3', 6, 850000, 3),
+(8, 'Deluxe 3', 6, 2050000, 3),
+(9, 'Vip 3', 6, 4450000, 3);
 
 -- --------------------------------------------------------
 
@@ -424,7 +433,7 @@ ALTER TABLE `roles`
 -- AUTO_INCREMENT cho bảng `rooms`
 --
 ALTER TABLE `rooms`
-  MODIFY `room_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `room_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT cho bảng `room_statuses`
@@ -436,7 +445,7 @@ ALTER TABLE `room_statuses`
 -- AUTO_INCREMENT cho bảng `room_types`
 --
 ALTER TABLE `room_types`
-  MODIFY `room_type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `room_type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT cho bảng `stays`

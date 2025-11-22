@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,119 +7,156 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from './ui/dialog';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Textarea } from './ui/textarea';
-import { toast } from 'sonner@2.0.3';
-import { Plus } from 'lucide-react';
+} from "./ui/dialog";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { toast } from "sonner";
+import { Plus } from "lucide-react";
 
-type RoomStatus = 'available' | 'occupied' | 'maintenance' | 'cleaning';
-type RoomType = 'standard' | 'deluxe' | 'suite' | 'presidential';
+interface RoomType {
+  roomTypeId: number;
+  name: string;
+  basePrice: number;
+  bedCount: number;
+  maxOccupancy: number;
+}
+
+interface RoomStatus {
+  statusId: number;
+  name: string;
+}
 
 interface Room {
-  id: string;
-  number: string;
-  type: RoomType;
-  status: RoomStatus;
-  guest?: string;
-  checkOut?: string;
-  price: number;
-  floor: number;
+  roomId?: number;
+  roomNumber: string;
+  roomType: { roomTypeId: number };
+  status: { statusId: number };
+  floor: string;
+  bedCount: number;
+  maxOccupancy: number;
   image: string;
-  amenities: string[];
-  capacity: number;
-  size: number;
-  view: string;
 }
 
 interface AddEditRoomDialogProps {
   room?: Room;
-  onSave: (room: Partial<Room>) => void;
+  roomTypes: RoomType[];
+  roomStatuses: RoomStatus[];
+  onSave: (room: Room) => void;
   trigger?: React.ReactNode;
 }
 
-export function AddEditRoomDialog({ room, onSave, trigger }: AddEditRoomDialogProps) {
+export function AddEditRoomDialog({
+  room,
+  roomTypes,
+  roomStatuses,
+  onSave,
+  trigger,
+}: AddEditRoomDialogProps) {
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    number: '',
-    type: 'standard' as RoomType,
-    status: 'available' as RoomStatus,
-    price: '',
-    floor: '',
-    capacity: '',
-    size: '',
-    view: '',
-    amenities: '',
-    image: 'https://images.unsplash.com/photo-1626868449668-fb47a048d9cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBob3RlbCUyMHJvb20lMjBiZWR8ZW58MXx8fHwxNzU5NzEyMjYyfDA&ixlib=rb-4.1.0&q=80&w=1080',
+
+  const [formData, setFormData] = useState<Room>({
+    roomNumber: "",
+    roomType: { roomTypeId: 0 },
+    status: { statusId: 0 },
+    floor: "",
+    bedCount: 1,
+    maxOccupancy: 1,
+    image: "",
   });
 
+  const [images, setImages] = useState<string[]>([]);
+
+  // 🔥 Load images từ folder uploads/rooms
   useEffect(() => {
-    if (room && open) {
-      setFormData({
-        number: room.number,
-        type: room.type,
-        status: room.status,
-        price: room.price.toString(),
-        floor: room.floor.toString(),
-        capacity: room.capacity.toString(),
-        size: room.size.toString(),
-        view: room.view,
-        amenities: room.amenities.join(', '),
-        image: room.image,
-      });
-    } else if (!room && open) {
-      setFormData({
-        number: '',
-        type: 'standard',
-        status: 'available',
-        price: '',
-        floor: '',
-        capacity: '',
-        size: '',
-        view: '',
-        amenities: '',
-        image: 'https://images.unsplash.com/photo-1626868449668-fb47a048d9cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBob3RlbCUyMHJvb20lMjBiZWR8ZW58MXx8fHwxNzU5NzEyMjYyfDA&ixlib=rb-4.1.0&q=80&w=1080',
-      });
+    if (open) {
+      fetch("http://localhost:8080/api/uploads/images")
+        .then((res) => res.json())
+        .then((data: string[]) => setImages(data))
+        .catch((err) => console.error("Cannot fetch images:", err));
     }
-  }, [room, open]);
+  }, [open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const amenitiesArray = formData.amenities
-      .split(',')
-      .map(a => a.trim())
-      .filter(a => a.length > 0);
+  // 🔥 Load dữ liệu khi mở dialog
+  useEffect(() => {
+    if (open) {
+      if (room) {
+        setFormData({
+          roomId: room.roomId,
+          roomNumber: room.roomNumber,
+          roomType: { roomTypeId: room.roomType.roomTypeId },
+          status: { statusId: room.status.statusId },
+          floor: room.floor,
+          bedCount: room.bedCount,
+          maxOccupancy: room.maxOccupancy,
+          image: room.image.trim(), // FIX newline từ DB
+        });
+      } else if (roomTypes.length > 0 && roomStatuses.length > 0) {
+        const defaultType = roomTypes[0];
+        const defaultStatus = roomStatuses[0];
 
-    const roomData: Partial<Room> = {
-      number: formData.number,
-      type: formData.type,
-      status: formData.status,
-      price: parseInt(formData.price),
-      floor: parseInt(formData.floor),
-      capacity: parseInt(formData.capacity),
-      size: parseInt(formData.size),
-      view: formData.view,
-      amenities: amenitiesArray,
-      image: formData.image,
-    };
-
-    if (room) {
-      roomData.id = room.id;
-    }
-
-    onSave(roomData);
-    setOpen(false);
-    
-    toast.success(
-      room ? 'Cập nhật phòng thành công!' : 'Thêm phòng mới thành công!',
-      {
-        description: `Phòng ${formData.number} đã được ${room ? 'cập nhật' : 'thêm vào hệ thống'}.`
+        setFormData({
+          roomNumber: "",
+          roomType: { roomTypeId: defaultType.roomTypeId },
+          status: { statusId: defaultStatus.statusId },
+          floor: "",
+          bedCount: defaultType.bedCount,
+          maxOccupancy: defaultType.maxOccupancy,
+          image: "",
+        });
       }
-    );
+    }
+  }, [open, room, roomTypes, roomStatuses]);
+
+  const handleRoomTypeChange = (roomTypeIdStr: string) => {
+    const roomTypeId = parseInt(roomTypeIdStr);
+    const selectedType = roomTypes.find((t) => t.roomTypeId === roomTypeId);
+
+    if (selectedType) {
+      setFormData({
+        ...formData,
+        roomType: { roomTypeId },
+        bedCount: selectedType.bedCount,
+        maxOccupancy: selectedType.maxOccupancy,
+      });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const method = room?.roomId ? "PUT" : "POST";
+      const url = room?.roomId
+        ? `http://localhost:8080/api/rooms/${room.roomId}`
+        : "http://localhost:8080/api/rooms";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) throw new Error("Lỗi khi lưu phòng");
+
+      const json = await res.json();
+      onSave(json);
+
+      toast.success(
+        room ? "Cập nhật phòng thành công!" : "Thêm phòng thành công!"
+      );
+      setOpen(false);
+    } catch (err) {
+      toast.error("Không thể lưu phòng");
+      console.error(err);
+    }
   };
 
   return (
@@ -127,154 +164,157 @@ export function AddEditRoomDialog({ room, onSave, trigger }: AddEditRoomDialogPr
       <DialogTrigger asChild>
         {trigger || (
           <Button className="bg-gray-900 hover:bg-gray-800 text-white">
-            <Plus className="h-4 w-4 mr-2" />
-            Thêm Phòng Mới
+            <Plus className="h-4 w-4 mr-2" /> Thêm Phòng Mới
           </Button>
         )}
       </DialogTrigger>
+
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{room ? 'Chỉnh Sửa Phòng' : 'Thêm Phòng Mới'}</DialogTitle>
+          <DialogTitle>
+            {room ? "Chỉnh Sửa Phòng" : "Thêm Phòng Mới"}
+          </DialogTitle>
           <DialogDescription>
-            {room
-              ? 'Cập nhật thông tin chi tiết của phòng.'
-              : 'Nhập thông tin chi tiết cho phòng mới.'}
+            {room ? "Cập nhật thông tin phòng" : "Nhập thông tin phòng mới"}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="number">Số Phòng *</Label>
-                <Input
-                  id="number"
-                  value={formData.number}
-                  onChange={(e) => setFormData({ ...formData, number: e.target.value })}
-                  placeholder="VD: 101"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="floor">Tầng *</Label>
-                <Input
-                  id="floor"
-                  type="number"
-                  value={formData.floor}
-                  onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                  placeholder="VD: 1"
-                  required
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="type">Loại Phòng *</Label>
-                <Select value={formData.type} onValueChange={(value: RoomType) => setFormData({ ...formData, type: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="deluxe">Deluxe</SelectItem>
-                    <SelectItem value="suite">Suite</SelectItem>
-                    <SelectItem value="presidential">Presidential</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Trạng Thái *</Label>
-                <Select value={formData.status} onValueChange={(value: RoomStatus) => setFormData({ ...formData, status: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="available">Còn Trống</SelectItem>
-                    <SelectItem value="occupied">Đang Dùng</SelectItem>
-                    <SelectItem value="maintenance">Bảo Trì</SelectItem>
-                    <SelectItem value="cleaning">Dọn Dẹp</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="price">Giá (₹) *</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="9800"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="capacity">Sức Chứa *</Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                  placeholder="2"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="size">Diện Tích (m²) *</Label>
-                <Input
-                  id="size"
-                  type="number"
-                  value={formData.size}
-                  onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                  placeholder="25"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="view">Hướng Nhìn *</Label>
+        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+          {/* Room Number + Floor */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Số phòng *</Label>
               <Input
-                id="view"
-                value={formData.view}
-                onChange={(e) => setFormData({ ...formData, view: e.target.value })}
-                placeholder="VD: City View, Ocean View"
                 required
+                value={formData.roomNumber}
+                onChange={(e) =>
+                  setFormData({ ...formData, roomNumber: e.target.value })
+                }
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="amenities">Tiện Nghi *</Label>
-              <Textarea
-                id="amenities"
-                value={formData.amenities}
-                onChange={(e) => setFormData({ ...formData, amenities: e.target.value })}
-                placeholder="Nhập các tiện nghi cách nhau bằng dấu phẩy. VD: Wifi, TV, Mini Bar, Balcony"
-                required
-                rows={3}
-              />
-              <p className="text-xs text-gray-500">Các tiện nghi phân cách bằng dấu phẩy</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="image">URL Hình Ảnh</Label>
+            <div>
+              <Label>Tầng *</Label>
               <Input
-                id="image"
-                value={formData.image}
-                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                placeholder="https://..."
+                required
+                value={formData.floor}
+                onChange={(e) =>
+                  setFormData({ ...formData, floor: e.target.value })
+                }
               />
-              <p className="text-xs text-gray-500">Link hình ảnh của phòng</p>
             </div>
           </div>
+
+          {/* Type + Status */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Loại phòng *</Label>
+              <Select
+                value={formData.roomType.roomTypeId.toString()}
+                onValueChange={handleRoomTypeChange}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {roomTypes.map((t) => (
+                    <SelectItem
+                      key={t.roomTypeId}
+                      value={t.roomTypeId.toString()}
+                    >
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Trạng thái *</Label>
+              <Select
+                value={formData.status.statusId.toString()}
+                onValueChange={(v) =>
+                  setFormData({
+                    ...formData,
+                    status: { statusId: parseInt(v) },
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {roomStatuses.map((s) => (
+                    <SelectItem key={s.statusId} value={s.statusId.toString()}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Bed + Occupancy + Price */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label>Số giường</Label>
+              <Input disabled value={formData.bedCount} />
+            </div>
+
+            <div>
+              <Label>Sức chứa</Label>
+              <Input disabled value={formData.maxOccupancy} />
+            </div>
+
+            <div>
+              <Label>Giá / đêm</Label>
+              <Input
+                disabled
+                value={
+                  roomTypes.find(
+                    (t) => t.roomTypeId === formData.roomType.roomTypeId
+                  )?.basePrice || 0
+                }
+              />
+            </div>
+          </div>
+
+          {/* Image Selector */}
+          <div>
+            <Label>Hình ảnh phòng *</Label>
+            <Select
+              value={formData.image}
+              onValueChange={(value) =>
+                setFormData({ ...formData, image: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {images.map((img) => (
+                  <SelectItem key={img} value={`uploads/rooms/${img}`}>
+                    {img}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {formData.image && (
+              <img
+                src={`http://localhost:8080/${formData.image}`}
+                alt="Preview"
+                className="mt-2 h-24 w-24 object-cover border"
+              />
+            )}
+          </div>
+
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => setOpen(false)}>
               Hủy
             </Button>
             <Button type="submit" className="bg-gray-900 hover:bg-gray-800">
-              {room ? 'Cập Nhật' : 'Thêm Phòng'}
+              {room ? "Cập nhật" : "Thêm phòng"}
             </Button>
           </DialogFooter>
         </form>

@@ -15,26 +15,31 @@ public class Room {
     @Column(name = "room_id")
     private Integer roomId;
 
-    @Column(name = "room_number", unique = true, nullable = false)
+    @Column(name = "room_number")
     private String roomNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "room_type_id")
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "room_type_id", nullable = false)
     private RoomType roomType;
 
-    @Column(name = "floor")
     private String floor;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "status_id")
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "status_id", nullable = false)
     private RoomStatus status;
 
-    @Column(name = "bed_count")
-    private Integer bedCount;
+    private String image;
 
-    @Column(name = "max_occupancy")
-    private Integer maxOccupancy;
+    // Lấy thông tin tiện ích từ RoomType
+    public Integer getBedCount() {
+        return roomType != null ? roomType.getBedCount() : null;
+    }
 
-    @Column(name = "image")
-    private String image; // đường dẫn file ảnh
+    public Integer getMaxOccupancy() {
+        return roomType != null ? roomType.getMaxOccupancy() : null;
+    }
+
+    public Double getBasePrice() {
+        return roomType != null ? roomType.getBasePrice() : null;
+    }
 }

@@ -16,8 +16,8 @@ public class RoomType {
     private Integer roomTypeId;
 
     private String name;
-    private Integer capacity;
 
-    @Column(name = "base_price")
-    private Double basePrice;
+    private Integer bedCount;        // số giường
+    private Integer maxOccupancy;    // sức chứa tối đa
+    private Double basePrice;        // giá cơ bản
 }

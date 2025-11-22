@@ -1,7 +1,8 @@
 package com.hotel.controller;
 
-import com.hotel.dto.RoomDTO;
+import com.hotel.model.Room;
 import com.hotel.service.RoomService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,59 +13,64 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class RoomController {
 
-    private final RoomService service;
+    @Autowired
+    private RoomService roomService;
 
-    public RoomController(RoomService service) {
-        this.service = service;
-    }
-
+    // Lấy danh sách phòng với filter
     @GetMapping
-    public ResponseEntity<List<RoomDTO>> getRooms(
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) Integer statusId,
-            @RequestParam(required = false) Integer roomTypeId
+    public List<Room> getAllRooms(
+            @RequestParam(required = false) String roomNumber,
+            @RequestParam(required = false) Integer roomTypeId,
+            @RequestParam(required = false) Integer statusId
     ) {
-        List<RoomDTO> rooms = service.getFilteredDTO(search, statusId, roomTypeId);
-        return ResponseEntity.ok(rooms);
+        return roomService.getRooms(roomNumber, roomTypeId, statusId);
     }
 
+    // Lấy phòng theo id
     @GetMapping("/{id}")
-    public ResponseEntity<RoomDTO> getRoom(@PathVariable Integer id) {
-        var r = service.getById(id);
-        if (r == null) return ResponseEntity.notFound().build();
-
-        var dto = new RoomDTO(
-            r.getRoomId(),
-            r.getRoomNumber() != null ? r.getRoomNumber().trim() : null,
-            r.getRoomType() != null ? r.getRoomType().getRoomTypeId() : null,
-            r.getRoomType() != null ? r.getRoomType().getName().trim() : null,
-            r.getRoomType() != null ? r.getRoomType().getBasePrice() : null,
-            r.getStatus() != null ? r.getStatus().getStatusId() : null,
-            r.getStatus() != null ? r.getStatus().getName().trim() : null,
-            r.getFloor() != null ? r.getFloor().trim() : null,
-            r.getBedCount(),
-            r.getMaxOccupancy(),
-            r.getImage() != null ? r.getImage().trim() : null
-        );
-
-        return ResponseEntity.ok(dto);
+    public ResponseEntity<Room> getRoomById(@PathVariable Integer id) {
+        return roomService.getRoomById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
+    // Thêm phòng mới
     @PostMapping
-    public ResponseEntity<RoomDTO> createRoom(@RequestBody RoomDTO dto) {
-        RoomDTO saved = service.save(dto);
-        return ResponseEntity.ok(saved);
+    public Room createRoom(@RequestBody Room newRoom) {
+        return roomService.addRoom(newRoom);
     }
 
+    // Cập nhật phòng
     @PutMapping("/{id}")
-    public ResponseEntity<RoomDTO> updateRoom(@PathVariable Integer id, @RequestBody RoomDTO dto) {
-        RoomDTO updated = service.update(id, dto);
-        return ResponseEntity.ok(updated);
+    public ResponseEntity<Room> updateRoom(@PathVariable Integer id, @RequestBody Room updatedRoom) {
+        try {
+            Room room = roomService.updateRoom(id, updatedRoom);
+            return ResponseEntity.ok(room);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
+    // Xóa phòng
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRoom(@PathVariable Integer id) {
-        service.delete(id);
+        roomService.deleteRoom(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // Lấy số giường của phòng
+    @GetMapping("/{id}/bedCount")
+    public ResponseEntity<Integer> getBedCount(@PathVariable Integer id) {
+        return roomService.getRoomById(id)
+                .map(room -> ResponseEntity.ok(roomService.getBedCount(room)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // Lấy sức chứa tối đa của phòng
+    @GetMapping("/{id}/maxOccupancy")
+    public ResponseEntity<Integer> getMaxOccupancy(@PathVariable Integer id) {
+        return roomService.getRoomById(id)
+                .map(room -> ResponseEntity.ok(roomService.getMaxOccupancy(room)))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

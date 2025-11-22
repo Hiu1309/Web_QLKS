@@ -1,3 +1,4 @@
+// RoomManagement.tsx
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -37,13 +38,13 @@ interface Room {
   image: string;
 }
 
-// Mapping trạng thái sang màu và nhãn (dùng cho inline style)
+// Mapping trạng thái sang màu và nhãn
 const statusColors: Record<string, string> = {
-  "Còn Trống": "#22c55e", // green
-  "Đang dùng phòng": "#ef4444", // red
-  "Đang bảo trì": "#facc15", // yellow
-  "Dọn dẹp": "#6b7280", // gray
-  "Đã trả phòng": "#3b82f6", // blue
+  "Còn Trống": "#22c55e",
+  "Đang dùng phòng": "#ef4444",
+  "Đang bảo trì": "#facc15",
+  "Dọn dẹp": "#6b7280",
+  "Đã trả phòng": "#3b82f6",
 };
 
 const statusLabels: Record<string, string> = {
@@ -54,34 +55,66 @@ const statusLabels: Record<string, string> = {
   "Đã trả phòng": "Đã Trả",
 };
 
+// Chuẩn hóa dữ liệu từ backend
+const mapRoomData = (r: any) => ({
+  ...r,
+  image: r.image?.trim(),
+  roomTypeName: r.roomType?.name || "",
+  price: r.roomType?.basePrice || r.price || 0,
+  bedCount: r.roomType?.bedCount ?? r.bedCount ?? 0,
+  maxOccupancy: r.roomType?.maxOccupancy ?? r.maxOccupancy ?? 0,
+  statusName: r.status?.name || "",
+});
+
 export function RoomManagement() {
   const [roomsList, setRoomsList] = useState<Room[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [roomTypes, setRoomTypes] = useState<any[]>([]);
+  const [roomStatuses, setRoomStatuses] = useState<any[]>([]);
 
-  // Fetch dữ liệu từ backend
-  useEffect(() => {
+  // Fetch rooms
+  const fetchRooms = () => {
     fetch("http://localhost:8080/api/rooms")
       .then((res) => res.json())
-      .then((data) => {
-        const cleanedData = data.map((r: Room) => ({
-          ...r,
-          image: r.image?.trim(),
-        }));
-        setRoomsList(cleanedData);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch rooms:", err);
-        toast.error("Không tải được dữ liệu phòng từ server!");
-      });
-  }, []);
-
-  const handleDeleteRoom = (roomId: number) => {
-    setRoomsList(roomsList.filter((room) => room.roomId !== roomId));
-    toast.success("Xóa phòng thành công!");
+      .then((data) => setRoomsList(data.map(mapRoomData)))
+      .catch(() => toast.error("Không tải được dữ liệu phòng từ server!"));
   };
 
+  // Fetch room types & statuses
+  const fetchRoomMeta = () => {
+    fetch("http://localhost:8080/api/room-types")
+      .then((res) => res.json())
+      .then((data) => setRoomTypes(data))
+      .catch(() => toast.error("Không tải được danh sách loại phòng"));
+
+    fetch("http://localhost:8080/api/room-statuses")
+      .then((res) => res.json())
+      .then((data) => setRoomStatuses(data))
+      .catch(() => toast.error("Không tải được danh sách trạng thái"));
+  };
+
+  useEffect(() => {
+    fetchRooms();
+    fetchRoomMeta();
+  }, []);
+
+  // Delete room
+  const handleDeleteRoom = async (roomId: number) => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/rooms/${roomId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Xóa thất bại");
+      setRoomsList((prev) => prev.filter((room) => room.roomId !== roomId));
+      toast.success("Xóa phòng thành công!");
+    } catch {
+      toast.error("Xóa phòng thất bại!");
+    }
+  };
+
+  // Filter & Search
   const filteredRooms = roomsList.filter((room) => {
     const matchesSearch = room.roomNumber
       .toLowerCase()
@@ -93,7 +126,9 @@ export function RoomManagement() {
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  const roomTypes = Array.from(new Set(roomsList.map((r) => r.roomTypeName)));
+  const uniqueRoomTypes = Array.from(
+    new Set(roomsList.map((r) => r.roomTypeName))
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
@@ -132,7 +167,7 @@ export function RoomManagement() {
         </div>
       </div>
 
-      {/* FILTER */}
+      {/* FILTER + Add Room */}
       <div className="p-6 space-y-6 -mt-16 relative z-10">
         <Card className="shadow-sm bg-white border-gray-200">
           <CardContent className="flex flex-col sm:flex-row gap-4 items-center justify-between p-6">
@@ -153,7 +188,7 @@ export function RoomManagement() {
               <SelectContent>
                 <SelectItem value="all">Tất cả trạng thái</SelectItem>
                 {Object.keys(statusLabels).map((key) => (
-                  <SelectItem key={key} value={key}>
+                  <SelectItem key={`status-${key}`} value={key}>
                     {statusLabels[key]}
                   </SelectItem>
                 ))}
@@ -166,8 +201,8 @@ export function RoomManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả loại</SelectItem>
-                {roomTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
+                {uniqueRoomTypes.map((type) => (
+                  <SelectItem key={`type-${type}`} value={type}>
                     {type}
                   </SelectItem>
                 ))}
@@ -175,9 +210,30 @@ export function RoomManagement() {
             </Select>
 
             <AddEditRoomDialog
-              onSave={(newRoom) =>
-                setRoomsList([...roomsList, newRoom as Room])
-              }
+              roomTypes={roomTypes}
+              roomStatuses={roomStatuses}
+              onSave={(savedRoom) => {
+                if (savedRoom && !savedRoom.image) {
+                  savedRoom.image = savedRoom.image || "";
+                }
+
+                const status = roomStatuses.find(
+                  (s) => s.statusId === savedRoom.status.statusId
+                );
+
+                const mappedRoom = {
+                  ...mapRoomData(savedRoom),
+                  statusName: status?.name || "",
+                };
+
+                setRoomsList((prev) =>
+                  prev.some((r) => r.roomId === mappedRoom.roomId)
+                    ? prev.map((r) =>
+                        r.roomId === mappedRoom.roomId ? mappedRoom : r
+                      )
+                    : [...prev, mappedRoom]
+                );
+              }}
             />
           </CardContent>
         </Card>
@@ -189,7 +245,6 @@ export function RoomManagement() {
               key={room.roomId}
               className="relative overflow-hidden group bg-white"
             >
-              {/* Image */}
               <div className="relative h-48 overflow-hidden">
                 <ImageWithFallback
                   src={`http://localhost:8080/${room.image}`}
@@ -211,7 +266,6 @@ export function RoomManagement() {
                   </span>
                 </div>
                 <div className="absolute top-3 right-3">
-                  {/* Chấm tròn trạng thái */}
                   <div
                     style={{
                       width: 12,
@@ -233,21 +287,18 @@ export function RoomManagement() {
                 </p>
                 <div className="flex items-center gap-4 text-sm text-gray-600">
                   <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    Tầng {room.floor}
+                    <MapPin className="h-3 w-3" /> Tầng {room.floor}
                   </span>
                   <span className="flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    {room.maxOccupancy} khách
+                    <Users className="h-3 w-3" /> {room.maxOccupancy} khách
                   </span>
                   <span className="flex items-center gap-1">
-                    <Bath className="h-3 w-3" />
-                    {room.bedCount} giường
+                    <Bath className="h-3 w-3" /> {room.bedCount} giường
                   </span>
                 </div>
               </CardHeader>
 
-              {/* Badge trạng thái lớn */}
+              {/* Badge trạng thái */}
               <CardContent className="flex justify-center pb-2">
                 <span
                   style={{
@@ -259,27 +310,43 @@ export function RoomManagement() {
                     fontSize: "0.875rem",
                   }}
                 >
-                  {statusLabels[room.statusName]}
+                  {statusLabels[room.statusName] || room.statusName}
                 </span>
               </CardContent>
 
-              {/* Nút Sửa/Xóa */}
+              {/* Sửa/Xóa */}
               <CardContent className="flex justify-center gap-2 pt-2">
                 <AddEditRoomDialog
                   room={room}
-                  onSave={(updatedRoom) =>
-                    setRoomsList(
-                      roomsList.map((r) =>
-                        r.roomId === updatedRoom.roomId ? updatedRoom : r
+                  roomTypes={roomTypes}
+                  roomStatuses={roomStatuses}
+                  onSave={(savedRoom) => {
+                    if (savedRoom && !savedRoom.image) {
+                      savedRoom.image = savedRoom.image || "";
+                    }
+
+                    const status = roomStatuses.find(
+                      (s) => s.statusId === savedRoom.status.statusId
+                    );
+
+                    const mappedRoom = {
+                      ...mapRoomData(savedRoom),
+                      statusName: status?.name || "",
+                    };
+
+                    setRoomsList((prev) =>
+                      prev.map((r) =>
+                        r.roomId === mappedRoom.roomId ? mappedRoom : r
                       )
-                    )
-                  }
+                    );
+                  }}
                   trigger={
                     <Button size="sm" variant="ghost">
                       <Edit className="h-4 w-4" />
                     </Button>
                   }
                 />
+
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button size="sm" variant="ghost">
