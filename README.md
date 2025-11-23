@@ -4,9 +4,21 @@ Frontend: ReactJS (Vite)
 Database: MySQL
 
 Yêu cầu
-Backend: Java 17+
-MySQL: sử dụng xampp
-Frontend: Node.js 18+
+1.Backend: 
+-Java 17 - 21 (22 trở đi sẽ ít hỗ trợ)
+-VS Code Extensions:
++Extension Pack for Java 
++Spring Boot Extension Pack
++Maven for Java
++Debugger for Java
+
+2.Frontend: 
+-Node.js 18+
+-VS Code Extensions:
++ES7+ React/Redux/React-Native snippets
+
+3.Database 
+-XAMPP (MySQL, phpMyAdmin)
 
 Cách chạy 
 - Đầu tiên tạo CSDL
