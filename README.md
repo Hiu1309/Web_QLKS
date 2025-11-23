@@ -11,15 +11,15 @@ Frontend: Node.js 18+
 Cách chạy 
 - Đầu tiên tạo CSDL
 1. Mở xampp chạy mysql tạo db sau: hotel_db 
-2. Chạy lệnh sql với nội dung ở trong file hotel_db.sql (file này ở nằm trong thư mục Web_QLKS
+2. Chạy lệnh sql với nội dung ở trong file hotel_db.sql (file này ở nằm trong thư mục Web_QLKS) 
 
--Sau đó chạy Backend lấy API (Thao tác vscode)
+- Sau đó chạy Backend lấy API (Thao tác vscode)
 1. gõ vào bash "cd /backend"
 2. xong gõ "./mvnw spring-boot:run"
 3. test chạy thành công chưa bằng cách truy cập địa chỉ lấy api room: http://localhost:8080/api/rooms
 4. Nếu thành công sẽ hiện ra danh sách các phòng
 
--Chạy web Frontend (Thao tác vscode)
+- Chạy web Frontend (Thao tác vscode)
 1. Tạo 1 bash khác để sử dụng rồi "cd /frontend"
 2. gõ "npm install" 
 3. cài xong gõ lệnh sau để cài tiếp vite: "npm install vite --save-dev"
