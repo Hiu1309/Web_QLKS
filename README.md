@@ -23,6 +23,6 @@ Cách chạy
 1. Tạo 1 bash khác để sử dụng rồi "cd /frontend"
 2. gõ "npm install" 
 3. cài xong gõ lệnh sau để cài tiếp vite: "npm install vite --save-dev"
-4. chạy react: "npm run dev" (sau bước này sẽ tự mở trình duyệt web hoặc truy cập qua http://localhost:3000/
+4. chạy react: "npm run dev" (sau bước này sẽ tự mở trình duyệt web hoặc có thể tự truy cập qua http://localhost:3000/)
 
 *Lưu ý: chỉ mới có mục "phòng" trong web là dữ liệu được lấy từ API còn các mục khác hiện chỉ có giao diện react với dữ liệu tĩnh tự tạo
