@@ -37,4 +37,4 @@ Cách chạy
 3. cài xong gõ lệnh sau để cài tiếp vite: "npm install vite --save-dev"
 4. chạy react: "npm run dev" (sau bước này sẽ tự mở trình duyệt web hoặc có thể tự truy cập qua http://localhost:3000/)
 
-*Lưu ý: chỉ mới có mục "phòng" trong web là dữ liệu được lấy từ API còn các mục khác hiện chỉ có giao diện react với dữ liệu tĩnh tự tạo
+*Lưu ý: chỉ mới có mục "phòng" trong web là dữ liệu được lấy từ API còn các mục khác chỉ có giao diện với dữ liệu tĩnh tự tạo
