@@ -1,54 +1,125 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Calendar } from './ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Textarea } from './ui/textarea';
-import { CalendarIcon, Users, Bed, CreditCard } from 'lucide-react';
-import { format } from 'date-fns@3.6.0';
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Calendar } from "./ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Textarea } from "./ui/textarea";
+import { CalendarIcon, Users, Bed, CreditCard } from "lucide-react";
+import { format } from "date-fns@3.6.0";
+import { toast } from "sonner";
 
 interface BookingDialogProps {
   trigger?: React.ReactNode;
   roomNumber?: string;
   roomType?: string;
   roomPrice?: number;
+  onCreated?: (reservation: any) => void;
 }
 
-export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: BookingDialogProps) {
+export function BookingDialog({
+  trigger,
+  roomNumber,
+  roomType,
+  roomPrice,
+  onCreated,
+}: BookingDialogProps) {
   const [open, setOpen] = useState(false);
   const [checkInDate, setCheckInDate] = useState<Date>();
   const [checkOutDate, setCheckOutDate] = useState<Date>();
   const [formData, setFormData] = useState({
-    guestName: '',
-    guestEmail: '',
-    guestPhone: '',
-    guestId: '',
-    numberOfGuests: '1',
-    roomNumber: roomNumber || '',
-    roomType: roomType || 'standard',
-    specialRequests: '',
-    paymentMethod: 'credit-card'
+    guestName: "",
+    guestEmail: "",
+    guestPhone: "",
+    guestId: "",
+    numberOfGuests: "1",
+    roomNumber: roomNumber || "",
+    roomType: roomType || "standard",
+    specialRequests: "",
+    paymentMethod: "credit-card",
   });
+  const [availableRooms, setAvailableRooms] = useState<any[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<number[]>([]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Booking submitted:', {
+    console.log("Booking submitted:", {
       ...formData,
       checkInDate,
       checkOutDate,
-      totalPrice: calculateTotal()
+      totalPrice: calculateTotal(),
     });
-    setOpen(false);
+    // send reservation to backend
+    const reservation = {
+      guest: {
+        fullName: formData.guestName,
+        email: formData.guestEmail,
+        phone: formData.guestPhone,
+      },
+      arrivalDate: checkInDate ? checkInDate.toISOString() : null,
+      departureDate: checkOutDate ? checkOutDate.toISOString() : null,
+      numGuests: parseInt(formData.numberOfGuests || "1"),
+      totalEstimated: calculateTotal(),
+      status: "confirmed",
+      reservationRooms: selectedRooms.map((rId) => ({ room: { roomId: rId } })),
+    };
+
+    fetch("http://localhost:8080/api/reservations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reservation),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Đặt phòng thất bại");
+        toast.success("Đặt phòng thành công");
+        res
+          .json()
+          .then((data) => {
+            onCreated && onCreated(data);
+            setOpen(false);
+          })
+          .catch(() => {
+            setOpen(false);
+          });
+      })
+      .catch(() => toast.error("Đặt phòng thất bại"));
   };
 
   const calculateTotal = () => {
     if (!checkInDate || !checkOutDate || !roomPrice) return 0;
-    const days = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+    const days = Math.ceil(
+      (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
     return days * roomPrice;
   };
+
+  useEffect(() => {
+    // fetch available rooms (filter "Còn Trống" status on the client)
+    fetch("http://localhost:8080/api/rooms")
+      .then((res) => res.json())
+      .then((data) => {
+        const available = data.filter(
+          (r: any) => r.status?.name === "Còn Trống"
+        );
+        setAvailableRooms(available);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -61,12 +132,14 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-gray-800">Đặt Phòng Mới</DialogTitle>
+          <DialogTitle className="text-2xl text-gray-800">
+            Đặt Phòng Mới
+          </DialogTitle>
           <DialogDescription className="text-gray-600">
             Điền thông tin để đặt phòng tại khách sạn HHA
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6 mt-4">
           {/* Guest Information */}
           <div className="space-y-4">
@@ -80,7 +153,9 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
                 <Input
                   id="guestName"
                   value={formData.guestName}
-                  onChange={(e) => setFormData({ ...formData, guestName: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, guestName: e.target.value })
+                  }
                   required
                   className="border-gray-300 focus:border-gray-500"
                   placeholder="Nguyễn Văn A"
@@ -92,7 +167,9 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
                   id="guestEmail"
                   type="email"
                   value={formData.guestEmail}
-                  onChange={(e) => setFormData({ ...formData, guestEmail: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, guestEmail: e.target.value })
+                  }
                   required
                   className="border-gray-300 focus:border-gray-500"
                   placeholder="example@email.com"
@@ -104,7 +181,9 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
                   id="guestPhone"
                   type="tel"
                   value={formData.guestPhone}
-                  onChange={(e) => setFormData({ ...formData, guestPhone: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, guestPhone: e.target.value })
+                  }
                   required
                   className="border-gray-300 focus:border-gray-500"
                   placeholder="+91 98765 43210"
@@ -115,7 +194,9 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
                 <Input
                   id="guestId"
                   value={formData.guestId}
-                  onChange={(e) => setFormData({ ...formData, guestId: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, guestId: e.target.value })
+                  }
                   required
                   className="border-gray-300 focus:border-gray-500"
                   placeholder="001234567890"
@@ -133,15 +214,24 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="roomType">Loại Phòng *</Label>
-                <Select value={formData.roomType} onValueChange={(value) => setFormData({ ...formData, roomType: value })}>
+                <Select
+                  value={formData.roomType}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, roomType: value })
+                  }
+                >
                   <SelectTrigger className="border-gray-300">
                     <SelectValue placeholder="Chọn loại phòng" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="standard">Standard (₹9,800/đêm)</SelectItem>
+                    <SelectItem value="standard">
+                      Standard (₹9,800/đêm)
+                    </SelectItem>
                     <SelectItem value="deluxe">Deluxe (₹14,720/đêm)</SelectItem>
                     <SelectItem value="suite">Suite (₹24,500/đêm)</SelectItem>
-                    <SelectItem value="presidential">Presidential (₹40,900/đêm)</SelectItem>
+                    <SelectItem value="presidential">
+                      Presidential (₹40,900/đêm)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -150,7 +240,9 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
                 <Input
                   id="roomNumber"
                   value={formData.roomNumber}
-                  onChange={(e) => setFormData({ ...formData, roomNumber: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, roomNumber: e.target.value })
+                  }
                   className="border-gray-300 focus:border-gray-500"
                   placeholder="Để trống để tự động chọn"
                 />
@@ -164,7 +256,9 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
                       className="w-full justify-start text-left border-gray-300 hover:bg-gray-50"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {checkInDate ? format(checkInDate, 'dd/MM/yyyy') : 'Chọn ngày'}
+                      {checkInDate
+                        ? format(checkInDate, "dd/MM/yyyy")
+                        : "Chọn ngày"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 bg-white" align="start">
@@ -186,7 +280,9 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
                       className="w-full justify-start text-left border-gray-300 hover:bg-gray-50"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {checkOutDate ? format(checkOutDate, 'dd/MM/yyyy') : 'Chọn ngày'}
+                      {checkOutDate
+                        ? format(checkOutDate, "dd/MM/yyyy")
+                        : "Chọn ngày"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 bg-white" align="start">
@@ -201,7 +297,12 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
               </div>
               <div>
                 <Label htmlFor="numberOfGuests">Số Lượng Khách *</Label>
-                <Select value={formData.numberOfGuests} onValueChange={(value) => setFormData({ ...formData, numberOfGuests: value })}>
+                <Select
+                  value={formData.numberOfGuests}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, numberOfGuests: value })
+                  }
+                >
                   <SelectTrigger className="border-gray-300">
                     <SelectValue />
                   </SelectTrigger>
@@ -226,7 +327,12 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label htmlFor="paymentMethod">Phương Thức Thanh Toán *</Label>
-                <Select value={formData.paymentMethod} onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}>
+                <Select
+                  value={formData.paymentMethod}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, paymentMethod: value })
+                  }
+                >
                   <SelectTrigger className="border-gray-300">
                     <SelectValue />
                   </SelectTrigger>
@@ -239,11 +345,18 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
                 </Select>
               </div>
               <div>
-                <Label htmlFor="specialRequests">Yêu Cầu Đặc Biệt (tùy chọn)</Label>
+                <Label htmlFor="specialRequests">
+                  Yêu Cầu Đặc Biệt (tùy chọn)
+                </Label>
                 <Textarea
                   id="specialRequests"
                   value={formData.specialRequests}
-                  onChange={(e) => setFormData({ ...formData, specialRequests: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      specialRequests: e.target.value,
+                    })
+                  }
                   className="border-gray-300 focus:border-gray-500 h-20"
                   placeholder="Ví dụ: Tầng cao, giường đôi, gần thang máy..."
                 />
@@ -257,7 +370,11 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">Số đêm:</span>
                 <span className="font-semibold text-gray-800">
-                  {Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24))} đêm
+                  {Math.ceil(
+                    (checkOutDate.getTime() - checkInDate.getTime()) /
+                      (1000 * 60 * 60 * 24)
+                  )}{" "}
+                  đêm
                 </span>
               </div>
               <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-300">
@@ -268,6 +385,38 @@ export function BookingDialog({ trigger, roomNumber, roomType, roomPrice }: Book
               </div>
             </div>
           )}
+
+          {/* Available room selection */}
+          <div>
+            <h3 className="font-semibold text-gray-800">Chọn Phòng</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+              {availableRooms.map((r) => (
+                <label
+                  key={r.roomId}
+                  className="p-2 border rounded flex items-center gap-2"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedRooms.includes(r.roomId)}
+                    onChange={() => {
+                      if (selectedRooms.includes(r.roomId))
+                        setSelectedRooms(
+                          selectedRooms.filter((id) => id !== r.roomId)
+                        );
+                      else setSelectedRooms([...selectedRooms, r.roomId]);
+                    }}
+                  />
+                  <div className="text-sm">
+                    <div className="font-medium">Phòng {r.roomNumber}</div>
+                    <div className="text-xs text-slate-500">
+                      {r.roomType?.name} -{" "}
+                      {r.roomType?.basePrice?.toLocaleString()}₫ / đêm
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">

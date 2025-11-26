@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th10 22, 2025 lúc 09:53 AM
+-- Thời gian đã tạo: Th10 26, 2025 lúc 04:45 PM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.2.12
 
@@ -37,6 +37,15 @@ CREATE TABLE `guests` (
   `id_number` varchar(50) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `guests`
+--
+
+INSERT INTO `guests` (`guest_id`, `full_name`, `email`, `phone`, `dob`, `id_type`, `id_number`, `created_at`) VALUES
+(1, 'Pham Thi D', 'phamthid@example.com', '0987654321', '1995-03-15', 'CMND', '123456789', '2025-11-26 01:47:21'),
+(2, 'Nguyen Van E', 'nguyenvane@example.com', '0976543210', '1988-07-22', 'Hộ chiếu', 'B987654321', '2025-11-26 01:47:21'),
+(3, 'Tran Van F', 'tranvanf@example.com', '0965432109', '2000-12-05', 'CMND', '234567890', '2025-11-26 01:47:21');
 
 -- --------------------------------------------------------
 
@@ -108,14 +117,23 @@ CREATE TABLE `payments` (
 CREATE TABLE `reservations` (
   `reservation_id` int(11) NOT NULL,
   `guest_id` int(11) NOT NULL,
-  `status` varchar(50) NOT NULL DEFAULT 'Confirmed',
-  `arrival_date` date NOT NULL,
-  `departure_date` date NOT NULL,
+  `status` varchar(255) DEFAULT NULL,
+  `arrival_date` datetime(6) NOT NULL,
+  `departure_date` datetime(6) NOT NULL,
   `num_guests` int(11) NOT NULL DEFAULT 1,
-  `total_estimated` decimal(18,2) NOT NULL DEFAULT 0.00,
+  `total_estimated` decimal(38,2) DEFAULT NULL,
   `created_by_user_id` int(11) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `reservations`
+--
+
+INSERT INTO `reservations` (`reservation_id`, `guest_id`, `status`, `arrival_date`, `departure_date`, `num_guests`, `total_estimated`, `created_by_user_id`, `created_at`) VALUES
+(1, 1, 'Confirmed', '2025-12-01 00:00:00.000000', '2025-12-03 00:00:00.000000', 1, 600000.00, 1, '2025-11-26 01:47:54'),
+(2, 2, 'Confirmed', '2025-12-05 00:00:00.000000', '2025-12-07 00:00:00.000000', 2, 1400000.00, 2, '2025-11-26 01:47:54'),
+(3, 3, 'Confirmed', '2025-12-10 00:00:00.000000', '2025-12-12 00:00:00.000000', 1, 1500000.00, 3, '2025-11-26 01:47:54');
 
 -- --------------------------------------------------------
 
@@ -124,12 +142,24 @@ CREATE TABLE `reservations` (
 --
 
 CREATE TABLE `reservation_rooms` (
-  `id` int(11) NOT NULL,
+  `id` bigint(20) NOT NULL,
   `reservation_id` int(11) NOT NULL,
   `room_id` int(11) DEFAULT NULL,
   `room_type_id` int(11) NOT NULL,
-  `price` decimal(18,2) NOT NULL DEFAULT 0.00
+  `price` decimal(38,2) DEFAULT NULL,
+  `price_per_night` decimal(38,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `reservation_rooms`
+--
+
+INSERT INTO `reservation_rooms` (`id`, `reservation_id`, `room_id`, `room_type_id`, `price`, `price_per_night`) VALUES
+(6, 1, 1, 1, 300000.00, 300000.00),
+(7, 1, 3, 2, 300000.00, 300000.00),
+(8, 2, 2, 5, 700000.00, 700000.00),
+(9, 2, 4, 5, 700000.00, 700000.00),
+(10, 3, 5, 3, 1500000.00, 1500000.00);
 
 -- --------------------------------------------------------
 
@@ -141,6 +171,15 @@ CREATE TABLE `roles` (
   `role_id` int(11) NOT NULL,
   `role_name` varchar(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `roles`
+--
+
+INSERT INTO `roles` (`role_id`, `role_name`) VALUES
+(1, 'Quản lý'),
+(2, 'Lễ tân'),
+(3, 'Buồng phòng');
 
 -- --------------------------------------------------------
 
@@ -233,8 +272,8 @@ CREATE TABLE `stays` (
   `room_id` int(11) NOT NULL,
   `checkin_time` datetime NOT NULL,
   `checkout_time` datetime NOT NULL,
-  `total_cost` decimal(18,2) NOT NULL DEFAULT 0.00,
-  `status` varchar(50) NOT NULL DEFAULT 'Checked-in',
+  `total_cost` decimal(38,2) DEFAULT NULL,
+  `status` varchar(255) DEFAULT NULL,
   `created_by_user_id` int(11) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -255,6 +294,15 @@ CREATE TABLE `users` (
   `phone` varchar(20) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `users`
+--
+
+INSERT INTO `users` (`user_id`, `username`, `password`, `full_name`, `role_id`, `email`, `phone`, `created_at`) VALUES
+(1, 'admin01', 'admin123', 'Nguyen Van A', 1, 'admin01@example.com', '0912345678', '2025-11-26 01:47:21'),
+(2, 'reception01', 'recep123', 'Tran Thi B', 2, 'reception01@example.com', '0923456789', '2025-11-26 01:47:21'),
+(3, 'manager01', 'manager123', 'Le Van C', 3, 'manager01@example.com', '0934567890', '2025-11-26 01:47:21');
 
 --
 -- Chỉ mục cho các bảng đã đổ
@@ -385,7 +433,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT cho bảng `guests`
 --
 ALTER TABLE `guests`
-  MODIFY `guest_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `guest_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `invoice`
@@ -415,19 +463,19 @@ ALTER TABLE `payments`
 -- AUTO_INCREMENT cho bảng `reservations`
 --
 ALTER TABLE `reservations`
-  MODIFY `reservation_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `reservation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT cho bảng `reservation_rooms`
 --
 ALTER TABLE `reservation_rooms`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT cho bảng `roles`
 --
 ALTER TABLE `roles`
-  MODIFY `role_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `role_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `rooms`
@@ -457,7 +505,7 @@ ALTER TABLE `stays`
 -- AUTO_INCREMENT cho bảng `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- Các ràng buộc cho các bảng đã đổ
