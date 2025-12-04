@@ -18,8 +18,17 @@ public class GuestController {
     @GetMapping
     public List<Guest> getAllGuests() { return guestService.getAllGuests(); }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public ResponseEntity<Guest> getById(@PathVariable Integer id) { return guestService.getGuestById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build()); }
+
+    @GetMapping("/find")
+    public List<Guest> search(@RequestParam(value = "idNumber", required = false) String idNumber,
+                              @RequestParam(value = "q", required = false) String q,
+                              @RequestParam(value = "idType", required = false) String idType) {
+        String searchTerm = q != null ? q : idNumber;
+        System.out.println("Guest search called with q="+q+" idNumber="+idNumber+" idType="+idType+" => searchTerm="+searchTerm);
+        return guestService.searchGuests(searchTerm, idType);
+    }
 
     @PostMapping
     public Guest create(@RequestBody Guest g) { return guestService.addGuest(g); }

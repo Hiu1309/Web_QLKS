@@ -1,0 +1,67 @@
+nohup: ignoring input
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.5.7)
+
+2025-11-27T18:21:00.794+07:00  INFO 9552 --- [backend] [           main] com.hotel.BackendApplication             : Starting BackendApplication v0.0.1-SNAPSHOT using Java 17.0.17 with PID 9552 (D:\Web-QLKS\Web_QLKS\backend\target\backend-0.0.1-SNAPSHOT.jar started by tienh in D:\Web-QLKS\Web_QLKS\backend)
+2025-11-27T18:21:00.798+07:00  INFO 9552 --- [backend] [           main] com.hotel.BackendApplication             : No active profile set, falling back to 1 default profile: "default"
+2025-11-27T18:21:01.509+07:00  INFO 9552 --- [backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-11-27T18:21:01.606+07:00  INFO 9552 --- [backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 78 ms. Found 7 JPA repository interfaces.
+2025-11-27T18:21:02.113+07:00  INFO 9552 --- [backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2025-11-27T18:21:02.131+07:00  INFO 9552 --- [backend] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-11-27T18:21:02.132+07:00  INFO 9552 --- [backend] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.48]
+2025-11-27T18:21:02.164+07:00  INFO 9552 --- [backend] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-11-27T18:21:02.165+07:00  INFO 9552 --- [backend] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1311 ms
+2025-11-27T18:21:02.359+07:00  INFO 9552 --- [backend] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-11-27T18:21:02.411+07:00  INFO 9552 --- [backend] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.33.Final
+2025-11-27T18:21:02.443+07:00  INFO 9552 --- [backend] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2025-11-27T18:21:02.695+07:00  INFO 9552 --- [backend] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-11-27T18:21:02.733+07:00  INFO 9552 --- [backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-11-27T18:21:02.880+07:00  INFO 9552 --- [backend] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@39ace1a7
+2025-11-27T18:21:02.881+07:00  INFO 9552 --- [backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-11-27T18:21:02.898+07:00  WARN 9552 --- [backend] [           main] org.hibernate.orm.deprecation            : HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-11-27T18:21:02.899+07:00  WARN 9552 --- [backend] [           main] org.hibernate.orm.deprecation            : HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2025-11-27T18:21:02.916+07:00  INFO 9552 --- [backend] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 8.0
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2025-11-27T18:21:03.654+07:00  INFO 9552 --- [backend] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-11-27T18:21:03.781+07:00  INFO 9552 --- [backend] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-11-27T18:21:04.031+07:00  INFO 9552 --- [backend] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-11-27T18:21:05.041+07:00  WARN 9552 --- [backend] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-11-27T18:21:05.575+07:00  INFO 9552 --- [backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path '/'
+2025-11-27T18:21:05.592+07:00  INFO 9552 --- [backend] [           main] com.hotel.BackendApplication             : Started BackendApplication in 5.276 seconds (process running for 5.672)
+2025-11-27T18:21:32.350+07:00  INFO 9552 --- [backend] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-11-27T18:21:32.351+07:00  INFO 9552 --- [backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2025-11-27T18:21:32.352+07:00  INFO 9552 --- [backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2025-11-27T18:21:32.371+07:00  WARN 9552 --- [backend] [nio-8080-exec-1] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.HttpRequestMethodNotSupportedException: Request method 'GET' is not supported]
+Exception in thread "http-nio-8080-exec-2" java.lang.NoClassDefFoundError: ch/qos/logback/classic/spi/ThrowableProxy
+	at ch.qos.logback.classic.spi.LoggingEvent.<init>(LoggingEvent.java:145)
+	at ch.qos.logback.classic.Logger.buildLoggingEventAndAppend(Logger.java:424)
+	at ch.qos.logback.classic.Logger.filterAndLog_0_Or3Plus(Logger.java:386)
+	at ch.qos.logback.classic.Logger.log(Logger.java:780)
+	at org.slf4j.bridge.SLF4JBridgeHandler.callLocationAwareLogger(SLF4JBridgeHandler.java:232)
+	at org.slf4j.bridge.SLF4JBridgeHandler.publish(SLF4JBridgeHandler.java:313)
+	at java.logging/java.util.logging.Logger.log(Logger.java:980)
+	at java.logging/java.util.logging.Logger.doLog(Logger.java:1007)
+	at java.logging/java.util.logging.Logger.logp(Logger.java:1284)
+	at org.apache.juli.logging.DirectJDKLog.log(DirectJDKLog.java:170)
+	at org.apache.juli.logging.DirectJDKLog.error(DirectJDKLog.java:141)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1792)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:973)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:491)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.lang.ClassNotFoundException: ch.qos.logback.classic.spi.ThrowableProxy
+	... 17 more

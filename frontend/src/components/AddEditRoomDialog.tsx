@@ -53,6 +53,53 @@ interface AddEditRoomDialogProps {
   trigger?: React.ReactNode;
 }
 
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  "còn trống": ["còn trống", "dọn dẹp", "đang bảo trì"],
+  "đã trả phòng": ["đã trả phòng", "còn trống", "dọn dẹp", "đang bảo trì"],
+  "đang bảo trì": ["đang bảo trì", "dọn dẹp", "còn trống"],
+  "dọn dẹp": ["dọn dẹp", "đang bảo trì", "còn trống"],
+  "đã đặt": ["đã đặt"],
+  "đã nhận phòng": ["đã nhận phòng"],
+  "đã nhận": ["đã nhận"],
+};
+
+const LOCKED_STATUS_KEYS = new Set(["đã đặt", "đã nhận phòng", "đã nhận"]);
+
+const normalizeImagePath = (value?: string | null) => {
+  if (!value) return "";
+
+  let trimmed = value.trim();
+  if (!trimmed) return "";
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const url = new URL(trimmed);
+      trimmed = url.pathname;
+    } catch {
+      trimmed = trimmed.replace(/^https?:\/\//i, "");
+    }
+  }
+
+  trimmed = trimmed.replace(/^static\//, "");
+  trimmed = trimmed.replace(/^\/+/, "");
+
+  if (trimmed.startsWith("uploads/")) {
+    return trimmed;
+  }
+
+  const filename = trimmed.split("/").pop() ?? "";
+  if (!filename) return "";
+
+  return `uploads/rooms/${filename}`;
+};
+
+const sanitizeStatusName = (value?: string | null) => {
+  if (!value) return "";
+  return value.trim();
+};
+
+const statusKey = (value?: string | null) =>
+  sanitizeStatusName(value).toLowerCase();
 export function AddEditRoomDialog({
   room,
   roomTypes,
@@ -72,60 +119,105 @@ export function AddEditRoomDialog({
     image: "",
   });
 
-  const [images, setImages] = useState<string[]>([]);
+  const lockedByStatusId = room ? [2, 7].includes(room.status.statusId) : false;
 
-  // 🔥 Load images từ folder uploads/rooms
+  const currentStatus = roomStatuses.find(
+    (status) => status.statusId === formData.status.statusId
+  );
+  const currentStatusKey = statusKey(currentStatus?.name);
+  const allowedStatusKeys =
+    room && currentStatusKey && STATUS_TRANSITIONS[currentStatusKey]
+      ? STATUS_TRANSITIONS[currentStatusKey]
+      : roomStatuses.map((status) => statusKey(status.name));
+  const selectableStatusesRaw = roomStatuses.filter((status) =>
+    allowedStatusKeys.includes(statusKey(status.name))
+  );
+  const selectableStatuses =
+    room && selectableStatusesRaw.length > 0
+      ? selectableStatusesRaw
+      : roomStatuses;
+  const statusSelectDisabled =
+    (room && LOCKED_STATUS_KEYS.has(currentStatusKey)) || lockedByStatusId;
+  const roomTypeSelectDisabled = lockedByStatusId;
+  let statusOptions: RoomStatus[] =
+    selectableStatuses.length > 0 ? selectableStatuses : roomStatuses;
+  if (statusSelectDisabled && currentStatus) {
+    statusOptions = [currentStatus];
+  }
+
+  // Load dữ liệu khi mở dialog
   useEffect(() => {
-    if (open) {
-      fetch("http://localhost:8080/api/uploads/images")
-        .then((res) => res.json())
-        .then((data: string[]) => setImages(data))
-        .catch((err) => console.error("Cannot fetch images:", err));
-    }
-  }, [open]);
+    if (!open) return;
 
-  // 🔥 Load dữ liệu khi mở dialog
-  useEffect(() => {
-    if (open) {
-      if (room) {
-        setFormData({
-          roomId: room.roomId,
-          roomNumber: room.roomNumber,
-          roomType: { roomTypeId: room.roomType.roomTypeId },
-          status: { statusId: room.status.statusId },
-          floor: room.floor,
-          bedCount: room.bedCount,
-          maxOccupancy: room.maxOccupancy,
-          image: room.image.trim(), // FIX newline từ DB
-        });
-      } else if (roomTypes.length > 0 && roomStatuses.length > 0) {
-        const defaultType = roomTypes[0];
-        const defaultStatus = roomStatuses[0];
-
-        setFormData({
-          roomNumber: "",
-          roomType: { roomTypeId: defaultType.roomTypeId },
-          status: { statusId: defaultStatus.statusId },
-          floor: "",
-          bedCount: defaultType.bedCount,
-          maxOccupancy: defaultType.maxOccupancy,
-          image: "",
-        });
-      }
+    // Xử lý formData cho chế độ edit
+    if (room) {
+      const normalizedImage = normalizeImagePath(room.image);
+      setFormData({
+        roomId: room.roomId,
+        roomNumber: room.roomNumber,
+        roomType: { roomTypeId: room.roomType.roomTypeId },
+        status: { statusId: room.status.statusId },
+        floor: room.floor,
+        bedCount: room.bedCount,
+        maxOccupancy: room.maxOccupancy,
+        image: normalizedImage,
+      });
+      return;
     }
+
+    // Mới thêm phòng
+    if (roomTypes.length === 0 || roomStatuses.length === 0) {
+      return;
+    }
+
+    const defaultType = roomTypes[0];
+    const preferredStatus =
+      roomStatuses.find((status) => status.name === "Còn Trống") ||
+      roomStatuses[0];
+
+    setFormData({
+      roomNumber: "",
+      roomType: { roomTypeId: defaultType.roomTypeId },
+      status: { statusId: preferredStatus?.statusId ?? 0 },
+      floor: "",
+      bedCount: defaultType.bedCount,
+      maxOccupancy: defaultType.maxOccupancy,
+      image: "uploads/rooms/",
+    });
   }, [open, room, roomTypes, roomStatuses]);
 
+  const statusOptionIds = statusOptions
+    .map((status) => status.statusId)
+    .join(",");
+
+  useEffect(() => {
+    if (!open) return;
+    if (statusOptions.length === 0) return;
+
+    const statusExists = statusOptions.some(
+      (status) => status.statusId === formData.status.statusId
+    );
+
+    if (!statusExists) {
+      setFormData((prev) => ({
+        ...prev,
+        status: { statusId: statusOptions[0].statusId },
+      }));
+    }
+  }, [open, statusOptionIds, statusOptions.length, formData.status.statusId]);
+
   const handleRoomTypeChange = (roomTypeIdStr: string) => {
-    const roomTypeId = parseInt(roomTypeIdStr);
+    if (roomTypeSelectDisabled) return;
+    const roomTypeId = parseInt(roomTypeIdStr, 10);
     const selectedType = roomTypes.find((t) => t.roomTypeId === roomTypeId);
 
     if (selectedType) {
-      setFormData({
-        ...formData,
+      setFormData((prev) => ({
+        ...prev,
         roomType: { roomTypeId },
         bedCount: selectedType.bedCount,
         maxOccupancy: selectedType.maxOccupancy,
-      });
+      }));
     }
   };
 
@@ -133,21 +225,31 @@ export function AddEditRoomDialog({
     e.preventDefault();
 
     try {
+      if (!formData.image) {
+        toast.error("Vui lòng chọn hình ảnh phòng");
+        return;
+      }
+
       const method = room?.roomId ? "PUT" : "POST";
       const url = room?.roomId
         ? `http://localhost:8080/api/rooms/${room.roomId}`
         : "http://localhost:8080/api/rooms";
 
+      const payload = {
+        ...formData,
+        image: normalizeImagePath(formData.image),
+      };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error("Lỗi khi lưu phòng");
 
       const json = await res.json();
-      onSave(json);
+      onSave({ ...json, image: payload.image });
 
       toast.success(
         room ? "Cập nhật phòng thành công!" : "Thêm phòng thành công!"
@@ -212,8 +314,9 @@ export function AddEditRoomDialog({
               <Select
                 value={formData.roomType.roomTypeId.toString()}
                 onValueChange={handleRoomTypeChange}
+                disabled={roomTypeSelectDisabled}
               >
-                <SelectTrigger>
+                <SelectTrigger disabled={roomTypeSelectDisabled}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -233,20 +336,26 @@ export function AddEditRoomDialog({
               <Label>Trạng thái *</Label>
               <Select
                 value={formData.status.statusId.toString()}
-                onValueChange={(v) =>
-                  setFormData({
-                    ...formData,
-                    status: { statusId: parseInt(v) },
-                  })
-                }
+                onValueChange={(v) => {
+                  if (statusSelectDisabled) return;
+                  setFormData((prev) => ({
+                    ...prev,
+                    status: { statusId: parseInt(v, 10) },
+                  }));
+                }}
+                disabled={statusSelectDisabled}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger disabled={statusSelectDisabled}>
+                  <SelectValue placeholder="Chọn trạng thái" />
                 </SelectTrigger>
                 <SelectContent>
-                  {roomStatuses.map((s) => (
-                    <SelectItem key={s.statusId} value={s.statusId.toString()}>
-                      {s.name}
+                  {statusOptions.map((status) => (
+                    <SelectItem
+                      key={status.statusId}
+                      value={status.statusId.toString()}
+                      disabled={statusSelectDisabled}
+                    >
+                      {sanitizeStatusName(status.name)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -279,34 +388,21 @@ export function AddEditRoomDialog({
             </div>
           </div>
 
-          {/* Image Selector */}
+          {/* Image Input */}
           <div>
             <Label>Hình ảnh phòng *</Label>
-            <Select
+            <Input
+              required
               value={formData.image}
-              onValueChange={(value) =>
-                setFormData({ ...formData, image: value })
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, image: e.target.value }))
               }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {images.map((img) => (
-                  <SelectItem key={img} value={`uploads/rooms/${img}`}>
-                    {img}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {formData.image && (
-              <img
-                src={`http://localhost:8080/${formData.image}`}
-                alt="Preview"
-                className="mt-2 h-24 w-24 object-cover border"
-              />
-            )}
+              placeholder="uploads/rooms/image.jpg"
+              className="border-gray-300 focus:border-gray-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Ví dụ: uploads/rooms/deluxe-room.jpg
+            </p>
           </div>
 
           <DialogFooter>

@@ -12,6 +12,10 @@ import com.hotel.repository.RoomRepository;
 import com.hotel.repository.RoomTypeRepository;
 import com.hotel.repository.GuestRepository;
 import com.hotel.repository.UserRepository;
+import com.hotel.repository.RoomStatusRepository;
+import com.hotel.service.RoomStatusService;
+import com.hotel.model.RoomStatus;
+import com.hotel.exception.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +42,9 @@ public class ReservationService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private RoomStatusService roomStatusService;
 
     public List<Reservation> getAllReservations(String guestName, String status) {
         String guestNameParam = (guestName == null || guestName.isBlank()) ? null : guestName.toLowerCase();
@@ -68,6 +75,10 @@ public class ReservationService {
                 if (rr.getRoom() != null && rr.getRoom().getRoomId() != null) {
                     Room room = roomRepository.findById(rr.getRoom().getRoomId()).orElse(null);
                     rr.setRoom(room);
+                    // Ensure room is available to be booked
+                    if (room != null && room.getStatus() != null && !"Còn Trống".equals(room.getStatus().getName())) {
+                        throw new BadRequestException("Phòng không khả dụng để đặt: " + room.getRoomNumber());
+                    }
                 }
                 if (rr.getRoomType() != null && rr.getRoomType().getRoomTypeId() != null) {
                     RoomType rt = roomTypeRepository.findById(rr.getRoomType().getRoomTypeId()).orElse(null);
@@ -79,7 +90,40 @@ public class ReservationService {
             reservation.setReservationRooms(rrList);
         }
 
-        return reservationRepository.save(reservation);
+        // Set createdAt if not provided (db constraint requires non-null)
+        if (reservation.getCreatedAt() == null) {
+            reservation.setCreatedAt(new java.sql.Timestamp(System.currentTimeMillis()));
+        }
+
+        // Set a default createdByUser if none provided to satisfy non-null DB constraint
+        if (reservation.getCreatedByUser() == null || reservation.getCreatedByUser().getUserId() == null) {
+            User defaultUser = userRepository.findById(1).orElse(null);
+            if (defaultUser != null) {
+                reservation.setCreatedByUser(defaultUser);
+            }
+        }
+
+        Reservation saved = reservationRepository.save(reservation);
+
+        // Set rooms to 'Đã đặt' status when reservation is created
+        RoomStatus bookedStatus = roomStatusService.createIfNotExists("Đã đặt");
+        if (saved.getReservationRooms() != null) {
+            for (ReservationRoom rr : saved.getReservationRooms()) {
+                if (rr.getRoom() != null) {
+                    Room room = rr.getRoom();
+                    boolean isOccupied = false;
+                    if (room.getStatus() != null && room.getStatus().getName() != null) {
+                        String currentStatus = room.getStatus().getName();
+                        isOccupied = "Đã nhận phòng".equals(currentStatus) || "Đang dùng phòng".equals(currentStatus);
+                    }
+                    if (!isOccupied) {
+                        room.setStatus(bookedStatus);
+                        roomRepository.save(room);
+                    }
+                }
+            }
+        }
+        return saved;
     }
 
     public Reservation updateReservation(Integer id, Reservation updated) {
@@ -100,9 +144,17 @@ public class ReservationService {
             existing.setCreatedByUser(u);
         }
 
-        // Replace reservationRooms: delete all old and save new ones
+        // Replace reservationRooms: free old rooms then delete all old RRs
         List<com.hotel.model.ReservationRoom> oldRRs = reservationRoomRepository.findByReservationReservationId(id);
+        RoomStatus freeStatus = roomStatusService.getByName("Còn Trống");
         if (oldRRs != null && !oldRRs.isEmpty()) {
+            for (com.hotel.model.ReservationRoom old : oldRRs) {
+                if (old.getRoom() != null && freeStatus != null) {
+                    Room rrRoom = old.getRoom();
+                    rrRoom.setStatus(freeStatus);
+                    roomRepository.save(rrRoom);
+                }
+            }
             reservationRoomRepository.deleteAll(oldRRs);
         }
 
@@ -112,6 +164,9 @@ public class ReservationService {
                 if (rr.getRoom() != null && rr.getRoom().getRoomId() != null) {
                     Room room = roomRepository.findById(rr.getRoom().getRoomId()).orElse(null);
                     rr.setRoom(room);
+                    if (room != null && room.getStatus() != null && !"Còn Trống".equals(room.getStatus().getName())) {
+                        throw new BadRequestException("Phòng không khả dụng để đặt: " + room.getRoomNumber());
+                    }
                 }
                 if (rr.getRoomType() != null && rr.getRoomType().getRoomTypeId() != null) {
                     RoomType rt = roomTypeRepository.findById(rr.getRoomType().getRoomTypeId()).orElse(null);
@@ -123,7 +178,41 @@ public class ReservationService {
             existing.setReservationRooms(newRRs);
         }
 
-        return reservationRepository.save(existing);
+        Reservation saved = reservationRepository.save(existing);
+        // mark new rooms as 'Đã đặt'
+        RoomStatus booked = roomStatusService.getByName("Đã đặt");
+        if (booked == null) booked = roomStatusService.createIfNotExists("Đã đặt");
+        if (booked != null && saved.getReservationRooms() != null) {
+            for (ReservationRoom rr : saved.getReservationRooms()) {
+                if (rr.getRoom() != null) {
+                    Room r = rr.getRoom();
+                    boolean isOccupied = false;
+                    if (r.getStatus() != null && r.getStatus().getName() != null) {
+                        String currentStatus = r.getStatus().getName();
+                        isOccupied = "Đã nhận phòng".equals(currentStatus) || "Đang dùng phòng".equals(currentStatus);
+                    }
+                    if (!isOccupied) {
+                        r.setStatus(booked);
+                        roomRepository.save(r);
+                    }
+                }
+            }
+        }
+        // If updated status is 'cancelled', revert rooms to 'Còn Trống'
+        if ("cancelled".equalsIgnoreCase(updated.getStatus())) {
+            RoomStatus free = roomStatusService.getByName("Còn Trống");
+            if (free != null) {
+                List<ReservationRoom> rrs = reservationRoomRepository.findByReservationReservationId(id);
+                for (ReservationRoom rr : rrs) {
+                    if (rr.getRoom() != null) {
+                        Room r = rr.getRoom();
+                        r.setStatus(free);
+                        roomRepository.save(r);
+                    }
+                }
+            }
+        }
+        return saved;
     }
 
     public void deleteReservation(Integer id) {

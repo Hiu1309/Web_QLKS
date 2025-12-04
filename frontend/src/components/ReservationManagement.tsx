@@ -52,7 +52,8 @@ interface ReservationRoomDto {
   id?: number | string;
   roomId?: number;
   roomNumber?: string;
-  roomType?: string;
+  room?: { roomId?: number; roomNumber?: string; roomType?: any };
+  roomType?: any;
   pricePerNight?: number;
   price?: number;
 }
@@ -64,34 +65,119 @@ interface Reservation {
   departureDate: string;
   numGuests: number;
   totalEstimated: number;
-  status: ReservationStatus;
+  status: ReservationStatus | string;
   reservationRooms?: ReservationRoomDto[];
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080";
+const API_BASE =
+  ((import.meta as any).env?.VITE_API_BASE as string) ||
+  "http://localhost:8080";
 
-// sample fallback for UI usage in dev builds
-const reservations: Reservation[] = [];
-
-const statusColors = {
+const statusColors: Record<string, string> = {
+  confirmed: "bg-blue-100 text-blue-800",
   "checked-in": "bg-green-100 text-green-800",
   "checked-out": "bg-gray-100 text-gray-800",
+  cancelled: "bg-red-100 text-red-800",
+};
+
+const statusText = (s: string | undefined) => {
+  const key = (s || "").toLowerCase();
+  switch (key) {
+    case "confirmed":
+      return "Đã đặt";
+    case "checked-in":
+      return "Đã nhận phòng";
+    case "checked-out":
+      return "Hoàn Thành";
+    case "cancelled":
+      return "Đã hủy";
+    default:
+      return s || "-";
+  }
+};
+
+const formatCurrency = (val?: number | string | null) => {
+  if (val === null || val === undefined || val === "") return "-";
+  const num =
+    typeof val === "number"
+      ? val
+      : parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
+  if (isNaN(num)) return String(val);
+  return num.toLocaleString("vi-VN");
+};
+
+const calculateNights = (arrival?: string, departure?: string) => {
+  if (!arrival || !departure) return 0;
+  try {
+    const a = new Date(arrival);
+    const d = new Date(departure);
+    const days = Math.ceil((d.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, days);
+  } catch (err) {
+    return 0;
+  }
+};
+
+const calculateReservationTotal = (reservation: Reservation | null) => {
+  if (!reservation) return 0;
+  const nights = calculateNights(
+    reservation.arrivalDate,
+    reservation.departureDate
+  );
+  if (
+    !reservation.reservationRooms ||
+    reservation.reservationRooms.length === 0
+  )
+    return 0;
+  let total = 0;
+  reservation.reservationRooms.forEach((rr) => {
+    const perNight =
+      rr.pricePerNight ?? (rr.price ? Number(rr.price) / (nights || 1) : 0);
+    total += (perNight || 0) * (nights || 0);
+  });
+  return total;
 };
 
 export function ReservationManagement() {
-  const [reservationsList, setReservationsList] =
-    useState<Reservation[]>(reservations);
+  const [reservationsList, setReservationsList] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedReservation, setSelectedReservation] =
     useState<Reservation | null>(null);
 
-  const handleCheckout = async (reservationId: number) => {
+  const fetchReservations = () => {
+    setLoading(true);
+    fetch(`${API_BASE}/api/reservations`)
+      .then((r) => r.json())
+      .then((data) => {
+        // Filter out cancelled reservations and sort newest createdAt first
+        const filtered = (data || []).filter(
+          (d: any) => (d.status || "").toLowerCase() !== "cancelled"
+        );
+        filtered.sort((a: any, b: any) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        });
+        setReservationsList(filtered);
+      })
+      .catch(() => toast.error("Không tải được danh sách đặt phòng"))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchReservations();
+  }, []);
+
+  const updateReservationStatus = async (
+    reservationId: number,
+    newStatus: string
+  ) => {
     const r = reservationsList.find((i) => i.reservationId === reservationId);
-    if (!r) return;
+    if (!r) return null;
     try {
-      const updated = { ...r, status: "checked-out" } as any;
+      const updated = { ...r, status: newStatus } as any;
       const resp = await fetch(
         `${API_BASE}/api/reservations/${reservationId}`,
         {
@@ -100,45 +186,102 @@ export function ReservationManagement() {
           body: JSON.stringify(updated),
         }
       );
-      if (!resp.ok) throw new Error("update failed");
-      setReservationsList((prev) =>
-        prev.map((item) =>
-          item.reservationId === reservationId ? updated : item
-        )
-      );
-      toast.success("Trả phòng thành công!");
+      if (!resp.ok) {
+        if (resp.status === 404) {
+          toast.error("Không tìm thấy đặt phòng (có thể đã bị xóa).");
+          // Refresh reservations to sync state
+          fetchReservations();
+          return null;
+        }
+        throw new Error("update failed");
+      }
+      const updatedFromServer = await resp.json();
+      // keep detail view in sync if currently selected
+      if (
+        selectedReservation &&
+        selectedReservation.reservationId === reservationId
+      ) {
+        if (newStatus === "cancelled") {
+          setSelectedReservation(null);
+        } else {
+          setSelectedReservation(updatedFromServer);
+        }
+      }
+      // If cancelled, remove from list
+      if (newStatus === "cancelled") {
+        setReservationsList((prev) =>
+          prev.filter((p) => p.reservationId !== reservationId)
+        );
+      } else {
+        setReservationsList((prev) =>
+          prev.map((item) =>
+            item.reservationId === reservationId ? updatedFromServer : item
+          )
+        );
+      }
+      return updatedFromServer;
     } catch (err) {
       toast.error("Không thể đổi trạng thái");
+      return null;
     }
   };
 
-  const handleDelete = async (reservationId: number) => {
+  const handleCheckIn = async (reservationId: number) => {
     try {
-      const res = await fetch(`${API_BASE}/api/reservations/${reservationId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("delete failed");
-      setReservationsList((prev) =>
-        prev.filter((r) => r.reservationId !== reservationId)
+      const res = await fetch(
+        `${API_BASE}/api/reservations/${reservationId}/checkin`,
+        {
+          method: "POST",
+        }
       );
-      toast.success("Đã xóa đặt phòng!");
+      if (!res.ok) throw new Error("Check-in failed");
+      const data = await res.json();
+      // backend sets reservation status and returns stays; refresh list
+      fetchReservations();
+      try {
+        window.dispatchEvent(new Event("roomsUpdated"));
+      } catch (e) {}
+      return data;
     } catch (err) {
-      toast.error("Xóa đặt phòng thất bại");
+      console.error(err);
+      toast.error("Không thể nhận phòng");
+      return null;
     }
   };
 
-  const fetchReservations = () => {
-    setLoading(true);
-    fetch(`${API_BASE}/api/reservations`)
-      .then((res) => res.json())
-      .then((data) => setReservationsList(data))
-      .catch(() => toast.error("Không tải được danh sách đặt phòng"))
-      .finally(() => setLoading(false));
+  const handleCheckOut = async (reservationId: number) => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/reservations/${reservationId}/checkout`,
+        {
+          method: "POST",
+        }
+      );
+      if (!res.ok) throw new Error("Check-out failed");
+      const data = await res.json();
+      fetchReservations();
+      try {
+        window.dispatchEvent(new Event("roomsUpdated"));
+      } catch (e) {}
+      return data;
+    } catch (err) {
+      console.error(err);
+      toast.error("Không thể trả phòng");
+      return null;
+    }
   };
 
-  useEffect(() => {
-    fetchReservations();
-  }, []);
+  const handleCancel = async (reservationId: number) => {
+    try {
+      const updated = await updateReservationStatus(reservationId, "cancelled");
+      if (updated) toast.success("Đã hủy đặt phòng!");
+      try {
+        window.dispatchEvent(new Event("roomsUpdated"));
+      } catch (e) {}
+    } catch (err) {
+      toast.error("Xóa (hủy) đặt phòng thất bại");
+    }
+  };
 
   const filteredReservations = reservationsList.filter((reservation) => {
     const guestName = reservation.guest?.fullName || "";
@@ -151,7 +294,8 @@ export function ReservationManagement() {
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
     const matchesStatus =
-      statusFilter === "all" || reservation.status === statusFilter;
+      statusFilter === "all" ||
+      (reservation.status || "").toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
 
@@ -169,13 +313,10 @@ export function ReservationManagement() {
               Đặt Phòng Mới
             </Button>
           }
-          onCreated={(res) => {
-            fetchReservations();
-          }}
+          onCreated={() => fetchReservations()}
         />
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
@@ -199,7 +340,6 @@ export function ReservationManagement() {
         </Select>
       </div>
 
-      {/* Reservations Table */}
       <Card className="bg-white border-slate-200 shadow-sm">
         <CardHeader>
           <CardTitle className="text-slate-700">Đặt Phòng Gần Đây</CardTitle>
@@ -211,6 +351,7 @@ export function ReservationManagement() {
                 <TableHead className="text-slate-600">Mã Đặt Phòng</TableHead>
                 <TableHead className="text-slate-600">Khách Hàng</TableHead>
                 <TableHead className="text-slate-600">Phòng</TableHead>
+                <TableHead className="text-slate-600">Loại Phòng</TableHead>
                 <TableHead className="text-slate-600">Nhận Phòng</TableHead>
                 <TableHead className="text-slate-600">Trả Phòng</TableHead>
                 <TableHead className="text-slate-600">Đêm</TableHead>
@@ -243,14 +384,30 @@ export function ReservationManagement() {
                       reservation.reservationRooms.length > 0 ? (
                         reservation.reservationRooms.map((rr, idx) => (
                           <p key={idx} className="font-medium text-slate-700">
-                            {rr.roomNumber
-                              ? `#${rr.roomNumber}`
-                              : (rr.roomType as any)?.name || rr.roomType}
+                            {rr.room?.roomNumber ??
+                              rr.roomNumber ??
+                              "(Chưa chọn)"}
                           </p>
                         ))
                       ) : (
                         <p className="text-sm text-slate-500">
                           (Chưa chọn phòng)
+                        </p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      {reservation.reservationRooms &&
+                      reservation.reservationRooms.length > 0 ? (
+                        reservation.reservationRooms.map((rr, idx) => (
+                          <p key={idx} className="font-medium text-slate-700">
+                            {(rr.roomType as any)?.name || rr.roomType || "-"}
+                          </p>
+                        ))
+                      ) : (
+                        <p className="text-sm text-slate-500">
+                          (Chưa chọn loại)
                         </p>
                       )}
                     </div>
@@ -262,25 +419,27 @@ export function ReservationManagement() {
                     {reservation.departureDate?.split("T")[0]}
                   </TableCell>
                   <TableCell className="text-slate-600">
-                    {reservation.reservationRooms?.length || 0}
+                    {Math.ceil(
+                      (new Date(reservation.departureDate).getTime() -
+                        new Date(reservation.arrivalDate).getTime()) /
+                        (1000 * 60 * 60 * 24)
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge
                       className={
                         statusColors[
-                          reservation.status as ReservationStatus
+                          (
+                            reservation.status || ""
+                          ).toLowerCase() as ReservationStatus
                         ] as any
                       }
                     >
-                      {reservation.status === "checked-in"
-                        ? "Đã Nhận Phòng"
-                        : reservation.status === "checked-out"
-                        ? "Đã Trả Phòng"
-                        : reservation.status}
+                      {statusText(reservation.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button
@@ -292,187 +451,260 @@ export function ReservationManagement() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-md bg-white">
+                        <DialogContent className="max-w-2xl bg-white p-6">
                           <DialogHeader>
                             <DialogTitle className="text-slate-700">
                               Chi Tiết Đặt Phòng
                             </DialogTitle>
                           </DialogHeader>
-                          {selectedReservation && (
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
+                          {selectedReservation &&
+                            selectedReservation.reservationId ===
+                              reservation.reservationId && (
+                              <div className="space-y-6 text-sm">
+                                {/* Header: ID + Status */}
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <Label className="text-slate-600">
+                                      Mã Đặt Phòng
+                                    </Label>
+                                    <p className="font-medium text-slate-700">
+                                      {selectedReservation.reservationId}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <Badge
+                                      className={`mt-1 ${
+                                        statusColors[
+                                          (
+                                            selectedReservation.status || ""
+                                          ).toLowerCase() as ReservationStatus
+                                        ]
+                                      }`}
+                                    >
+                                      {statusText(selectedReservation.status)}
+                                    </Badge>
+                                  </div>
+                                </div>
+
+                                {/* Guest & basics */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-slate-600">
+                                      Khách Hàng
+                                    </Label>
+                                    <p className="font-medium text-slate-700">
+                                      {selectedReservation.guest?.fullName}
+                                    </p>
+                                    <p className="text-sm text-slate-500">
+                                      {selectedReservation.guest?.email} •{" "}
+                                      {selectedReservation.guest?.phone}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-6">
+                                    <div>
+                                      <Label className="text-slate-600">
+                                        Nhận / Trả
+                                      </Label>
+                                      <div className="flex items-center gap-4">
+                                        <div>
+                                          <p className="font-medium text-slate-700">
+                                            {
+                                              selectedReservation.arrivalDate?.split(
+                                                "T"
+                                              )[0]
+                                            }
+                                          </p>
+                                          <p className="text-sm text-slate-500">
+                                            Nhận
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <p className="font-medium text-slate-700">
+                                            {
+                                              selectedReservation.departureDate?.split(
+                                                "T"
+                                              )[0]
+                                            }
+                                          </p>
+                                          <p className="text-sm text-slate-500">
+                                            Trả
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <Label className="text-slate-600">
+                                        Số Đêm
+                                      </Label>
+                                      <p className="font-medium text-slate-700">
+                                        {Math.ceil(
+                                          (new Date(
+                                            selectedReservation.departureDate
+                                          ).getTime() -
+                                            new Date(
+                                              selectedReservation.arrivalDate
+                                            ).getTime()) /
+                                            (1000 * 60 * 60 * 24)
+                                        )}{" "}
+                                        đêm
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <Label className="text-slate-600">
+                                        Số khách
+                                      </Label>
+                                      <p className="font-medium text-slate-700">
+                                        {selectedReservation.numGuests}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Rooms list */}
                                 <div>
                                   <Label className="text-slate-600">
-                                    Mã Đặt Phòng
+                                    Phòng đã chọn
                                   </Label>
-                                  <p className="font-medium text-slate-700">
-                                    {selectedReservation.reservationId}
-                                  </p>
-                                </div>
-                                <div>
-                                  <Label className="text-slate-600">
-                                    Trạng Thái
-                                  </Label>
-                                  <Badge
-                                    className={`mt-1 ${
-                                      statusColors[
-                                        selectedReservation.status as ReservationStatus
-                                      ]
-                                    }`}
-                                  >
-                                    {selectedReservation.status === "checked-in"
-                                      ? "Đã Nhận Phòng"
-                                      : selectedReservation.status ===
-                                        "checked-out"
-                                      ? "Đã Trả Phòng"
-                                      : selectedReservation.status}
-                                  </Badge>
-                                </div>
-                                <div>
-                                  <Label className="text-slate-600">
-                                    Khách Hàng
-                                  </Label>
-                                  <p className="font-medium text-slate-700">
-                                    {selectedReservation.guest?.fullName}
-                                  </p>
-                                </div>
-                                <div>
-                                  <Label className="text-slate-600">
-                                    Điện Thoại
-                                  </Label>
-                                  <p className="font-medium text-slate-700">
-                                    {selectedReservation.guest?.phone}
-                                  </p>
-                                </div>
-                                <div className="col-span-2">
-                                  <Label className="text-slate-600">
-                                    Các Phòng
-                                  </Label>
-                                  {selectedReservation.reservationRooms &&
-                                    selectedReservation.reservationRooms.map(
+                                  <div className="mt-2 space-y-2">
+                                    {selectedReservation.reservationRooms?.map(
                                       (rr, idx) => (
-                                        <p
+                                        <div
                                           key={idx}
-                                          className="font-medium text-slate-700"
+                                          className="flex items-center justify-between gap-4 p-3 border rounded-md"
                                         >
-                                          {rr.roomNumber
-                                            ? `#${rr.roomNumber}`
-                                            : `Loại: ${
-                                                (rr.roomType as any)?.name ||
-                                                rr.roomType
-                                              }`}{" "}
-                                          -{" "}
-                                          {rr.pricePerNight
-                                            ? `${rr.pricePerNight} / đêm`
-                                            : ""}
-                                        </p>
+                                          <div>
+                                            <p className="font-medium text-slate-700">
+                                              {rr.room?.roomNumber ??
+                                                rr.roomNumber ??
+                                                "(Chưa chọn)"}
+                                            </p>
+                                            <p className="text-sm text-slate-500">
+                                              {(rr.roomType as any)?.name ||
+                                                rr.roomType}
+                                            </p>
+                                          </div>
+                                          <div className="text-sm text-slate-700">
+                                            {rr.pricePerNight
+                                              ? `${formatCurrency(
+                                                  rr.pricePerNight
+                                                )} đ/đêm`
+                                              : "-"}
+                                          </div>
+                                        </div>
                                       )
                                     )}
+                                  </div>
                                 </div>
-                                <div>
-                                  <Label className="text-slate-600">
-                                    Số Khách
-                                  </Label>
-                                  <p className="font-medium text-slate-700">
-                                    {selectedReservation.numGuests}
-                                  </p>
-                                </div>
-                                <div>
-                                  <Label className="text-slate-600">
-                                    Nhận Phòng
-                                  </Label>
-                                  <p className="font-medium text-slate-700">
-                                    {
-                                      selectedReservation.arrivalDate?.split(
-                                        "T"
-                                      )[0]
-                                    }
-                                  </p>
-                                </div>
-                                <div>
-                                  <Label className="text-slate-600">
-                                    Trả Phòng
-                                  </Label>
-                                  <p className="font-medium text-slate-700">
-                                    {
-                                      selectedReservation.departureDate?.split(
-                                        "T"
-                                      )[0]
-                                    }
-                                  </p>
-                                </div>
-                                <div>
-                                  <Label className="text-slate-600">
-                                    Thời Gian
-                                  </Label>
-                                  <p className="font-medium text-slate-700">
-                                    {Math.ceil(
-                                      (new Date(
-                                        selectedReservation.departureDate
-                                      ).getTime() -
-                                        new Date(
-                                          selectedReservation.arrivalDate
-                                        ).getTime()) /
-                                        (1000 * 60 * 60 * 24)
-                                    )}{" "}
-                                    đêm
-                                  </p>
-                                </div>
-                                <div>
-                                  <Label className="text-slate-600">
-                                    Tổng Tiền
-                                  </Label>
-                                  <p className="font-medium text-emerald-600">
-                                    ₹
-                                    {selectedReservation.totalEstimated?.toLocaleString()}
-                                  </p>
+
+                                {/* Totals */}
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <Label className="text-slate-600">
+                                      Tổng ước tính
+                                    </Label>
+                                    <p className="font-medium text-slate-700">
+                                      {selectedReservation.totalEstimated
+                                        ? `${formatCurrency(
+                                            selectedReservation.totalEstimated
+                                          )} đ`
+                                        : "-"}
+                                    </p>
+                                  </div>
+                                  <div />
                                 </div>
                               </div>
-                              <div className="flex gap-2 pt-4">
-                                {selectedReservation.status ===
-                                  "checked-in" && (
-                                  <Button
-                                    size="sm"
-                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                                    onClick={() =>
-                                      handleCheckout(
-                                        selectedReservation.reservationId
-                                      )
-                                    }
-                                  >
-                                    Trả Phòng
-                                  </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="flex-1 border-slate-300"
-                                  onClick={() =>
-                                    handleDelete(
-                                      selectedReservation.reservationId
-                                    )
-                                  }
-                                >
-                                  Xóa
-                                </Button>
-                              </div>
-                            </div>
-                          )}
+                            )}
                         </DialogContent>
                       </Dialog>
-                      <ReservationEditDialog
-                        reservation={reservation}
-                        onSave={(updated) => fetchReservations()}
-                        trigger={
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-slate-300 hover:bg-slate-50"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        }
-                      />
+                      {(reservation.status || "").toLowerCase() ===
+                        "confirmed" && (
+                        <ReservationEditDialog
+                          reservation={reservation}
+                          onSave={(updated) => {
+                            fetchReservations();
+                            if (updated) setSelectedReservation(updated);
+                          }}
+                          trigger={
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-slate-300 hover:bg-slate-50"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          }
+                        />
+                      )}
+                      {(reservation.status || "").toLowerCase() ===
+                        "confirmed" && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={async () => {
+                            const result = await handleCheckIn(
+                              reservation.reservationId
+                            );
+                            if (result) {
+                              toast.success("Khách đã nhận phòng");
+                            }
+                          }}
+                        >
+                          Nhận Phòng
+                        </Button>
+                      )}
+                      {(reservation.status || "").toLowerCase() ===
+                        "checked-in" && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={async () => {
+                            const result = await handleCheckOut(
+                              reservation.reservationId
+                            );
+                            if (result) {
+                              toast.success("Trả phòng thành công!");
+                            }
+                          }}
+                        >
+                          Trả Phòng
+                        </Button>
+                      )}
+                      {(reservation.status || "").toLowerCase() ===
+                        "confirmed" && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="border-slate-300 hover:bg-slate-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Bạn có chắc muốn hủy đặt phòng?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Hành động này sẽ đánh dấu đặt phòng là 'Đã hủy'
+                                và sẽ không hiển thị trong danh sách nhưng vẫn
+                                tồn tại trong cơ sở dữ liệu.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Huỷ</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() =>
+                                  handleCancel(reservation.reservationId)
+                                }
+                              >
+                                Hủy đặt
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -481,7 +713,6 @@ export function ReservationManagement() {
           </Table>
         </CardContent>
       </Card>
-
       {filteredReservations.length === 0 && (
         <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
           <p className="text-slate-500">
@@ -492,3 +723,5 @@ export function ReservationManagement() {
     </div>
   );
 }
+
+export default ReservationManagement;

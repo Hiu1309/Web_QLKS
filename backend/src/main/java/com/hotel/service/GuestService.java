@@ -27,4 +27,10 @@ public class GuestService {
         return guestRepository.save(existing);
     }
     public void deleteGuest(Integer id) { guestRepository.deleteById(id); }
+
+    public List<Guest> searchGuests(String q, String idType) {
+        String query = (q == null || q.isBlank()) ? null : q.toLowerCase();
+        String type = (idType == null || idType.isBlank()) ? null : idType;
+        return guestRepository.searchByQueryAndType(query, type);
+    }
 }

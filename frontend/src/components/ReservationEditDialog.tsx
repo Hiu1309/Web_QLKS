@@ -18,7 +18,7 @@ import {
 } from "./ui/select";
 import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { format } from "date-fns@3.6.0";
+import { format } from "date-fns";
 import { toast } from "sonner";
 
 interface Props {
@@ -63,6 +63,31 @@ export function ReservationEditDialog({ reservation, trigger, onSave }: Props) {
     );
   }, [reservation]);
 
+  const calculateNights = (
+    arrival?: Date | undefined,
+    departure?: Date | undefined
+  ) => {
+    if (!arrival || !departure) return 0;
+    const days = Math.ceil(
+      (departure.getTime() - arrival.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    return Math.max(0, days);
+  };
+
+  const nights = calculateNights(arrivalDate, departureDate);
+
+  const calculateTotal = () => {
+    if (!nights || nights <= 0) return 0;
+    const perNightTotal = selectedRooms.reduce((sum, id) => {
+      const room = availableRooms.find((r) => r.roomId === id);
+      const price = room?.roomType?.basePrice || room?.basePrice || 0;
+      return sum + (price || 0);
+    }, 0);
+    return perNightTotal * nights;
+  };
+
+  const totalEstimate = calculateTotal();
+
   useEffect(() => {
     fetch(`${API_BASE}/api/rooms`)
       .then((r) => r.json())
@@ -84,6 +109,7 @@ export function ReservationEditDialog({ reservation, trigger, onSave }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reservation) return;
+    const nights = calculateNights(arrivalDate, departureDate);
     const payload = {
       ...reservation,
       guest: {
@@ -99,7 +125,21 @@ export function ReservationEditDialog({ reservation, trigger, onSave }: Props) {
         ? departureDate.toISOString()
         : reservation.departureDate,
       numGuests,
-      reservationRooms: selectedRooms.map((id) => ({ room: { roomId: id } })),
+      totalEstimated: calculateTotal(),
+      reservationRooms: selectedRooms.map((id) => {
+        const roomObj = availableRooms.find((r) => r.roomId === id);
+        const pricePerNight =
+          roomObj?.roomType?.basePrice || roomObj?.basePrice || 0;
+        const price = pricePerNight * (nights || 1);
+        return {
+          room: { roomId: id },
+          roomType: roomObj?.roomType
+            ? { roomTypeId: roomObj.roomType.roomTypeId }
+            : undefined,
+          pricePerNight,
+          price,
+        };
+      }),
     };
 
     try {
@@ -111,12 +151,25 @@ export function ReservationEditDialog({ reservation, trigger, onSave }: Props) {
           body: JSON.stringify(payload),
         }
       );
-      if (!res.ok) throw new Error("Cập nhật thất bại");
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        try {
+          const json = JSON.parse(body || "{}");
+          const msg = json.message || json.error || body || "Cập nhật thất bại";
+          console.error("Reservation PUT failed:", json);
+          toast.error(msg);
+        } catch (e) {
+          console.error("Reservation PUT failed:", body);
+          toast.error(body || "Cập nhật thất bại");
+        }
+        return;
+      }
       const updated = await res.json();
       toast.success("Cập nhật thành công");
       setOpen(false);
       onSave && onSave(updated);
     } catch (err) {
+      console.error("Reservation PUT error:", err);
       toast.error("Cập nhật thất bại");
     }
   };
@@ -209,6 +262,21 @@ export function ReservationEditDialog({ reservation, trigger, onSave }: Props) {
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+          </div>
+
+          <div className="py-2">
+            <div className="text-sm text-slate-600">
+              Số đêm:{" "}
+              <span className="font-medium text-slate-700">{nights}</span>
+            </div>
+            <div className="text-sm text-slate-600">
+              Tổng ước tính:{" "}
+              <span className="font-medium text-slate-700">
+                {totalEstimate
+                  ? totalEstimate.toLocaleString("vi-VN") + " đ"
+                  : "-"}
+              </span>
             </div>
           </div>
 

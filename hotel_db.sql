@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th10 26, 2025 lúc 04:45 PM
+-- Thời gian đã tạo: Th12 04, 2025 lúc 08:08 PM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.2.12
 
@@ -29,12 +29,12 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `guests` (
   `guest_id` int(11) NOT NULL,
-  `full_name` varchar(150) NOT NULL,
-  `email` varchar(150) NOT NULL,
-  `phone` varchar(20) NOT NULL,
+  `full_name` varchar(255) DEFAULT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `phone` varchar(255) DEFAULT NULL,
   `dob` date NOT NULL,
-  `id_type` varchar(50) NOT NULL,
-  `id_number` varchar(50) NOT NULL,
+  `id_type` varchar(255) DEFAULT NULL,
+  `id_number` varchar(255) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -43,9 +43,9 @@ CREATE TABLE `guests` (
 --
 
 INSERT INTO `guests` (`guest_id`, `full_name`, `email`, `phone`, `dob`, `id_type`, `id_number`, `created_at`) VALUES
-(1, 'Pham Thi D', 'phamthid@example.com', '0987654321', '1995-03-15', 'CMND', '123456789', '2025-11-26 01:47:21'),
+(1, 'Pham Thi D', 'phamthid@example.com', '0987654321', '1995-03-15', 'CCCD', '123456789', '2025-11-26 01:47:21'),
 (2, 'Nguyen Van E', 'nguyenvane@example.com', '0976543210', '1988-07-22', 'Hộ chiếu', 'B987654321', '2025-11-26 01:47:21'),
-(3, 'Tran Van F', 'tranvanf@example.com', '0965432109', '2000-12-05', 'CMND', '234567890', '2025-11-26 01:47:21');
+(3, 'Tran Van F', 'tranvanf@example.com', '0965432109', '2000-12-05', 'CCCD', '234567890', '2025-11-26 01:47:21');
 
 -- --------------------------------------------------------
 
@@ -86,11 +86,43 @@ CREATE TABLE `invoice_items` (
 
 CREATE TABLE `items` (
   `item_id` int(11) NOT NULL,
+  `item_type_id` int(11) DEFAULT NULL,
   `item_name` varchar(255) NOT NULL,
-  `price` decimal(18,2) NOT NULL,
-  `quantity` int(11) NOT NULL DEFAULT 0,
-  `status` varchar(30) NOT NULL DEFAULT 'Còn'
+  `price` double NOT NULL,
+  `status` varchar(255) DEFAULT NULL,
+  `image` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `items`
+--
+
+INSERT INTO `items` (`item_id`, `item_type_id`, `item_name`, `price`, `status`, `image`) VALUES
+(1, 3, 'Dịch vụ phòng ăn', 150000, 'Còn hoạt động', 'uploads/services/room-service.jpg'),
+(2, 1, 'Dịch vụ giặt ủi', 80000, 'Còn hoạt động', 'uploads/services/laundry.jpg'),
+(3, 2, 'Dịch vụ spa & massage', 300000, 'Còn hoạt động', 'uploads/services/spa-massage.jpg'),
+(4, 1, 'Dịch vụ hồ bơi', 200000, 'Còn hoạt động', 'uploads/services/swimming-pool.jpg'),
+(5, 2, 'Dịch vụ gym & thể dục', 120000, 'Còn hoạt động', 'uploads/services/gym.jpg');
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `item_types`
+--
+
+CREATE TABLE `item_types` (
+  `item_type_id` int(11) NOT NULL,
+  `type_name` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `item_types`
+--
+
+INSERT INTO `item_types` (`item_type_id`, `type_name`) VALUES
+(1, 'Tiện ích'),
+(2, 'Sức khỏe'),
+(3, 'Ăn uống');
 
 -- --------------------------------------------------------
 
@@ -131,9 +163,27 @@ CREATE TABLE `reservations` (
 --
 
 INSERT INTO `reservations` (`reservation_id`, `guest_id`, `status`, `arrival_date`, `departure_date`, `num_guests`, `total_estimated`, `created_by_user_id`, `created_at`) VALUES
-(1, 1, 'Confirmed', '2025-12-01 00:00:00.000000', '2025-12-03 00:00:00.000000', 1, 600000.00, 1, '2025-11-26 01:47:54'),
-(2, 2, 'Confirmed', '2025-12-05 00:00:00.000000', '2025-12-07 00:00:00.000000', 2, 1400000.00, 2, '2025-11-26 01:47:54'),
-(3, 3, 'Confirmed', '2025-12-10 00:00:00.000000', '2025-12-12 00:00:00.000000', 1, 1500000.00, 3, '2025-11-26 01:47:54');
+(1, 1, 'cancelled', '2025-12-01 00:00:00.000000', '2025-12-03 00:00:00.000000', 1, 600000.00, 1, '2025-11-26 01:47:54'),
+(2, 2, 'cancelled', '2025-12-05 00:00:00.000000', '2025-12-07 00:00:00.000000', 2, 1400000.00, 2, '2025-11-26 01:47:55'),
+(13, 1, 'checked-out', '2025-11-29 17:00:00.000000', '2025-12-04 17:00:00.000000', 3, 7500000.00, 1, '2025-11-29 08:19:06'),
+(14, 3, 'checked-out', '2025-11-30 17:00:00.000000', '2025-12-02 17:00:00.000000', 3, 4100000.00, 1, '2025-11-30 08:52:01'),
+(15, 3, 'cancelled', '2025-11-30 17:00:00.000000', '2025-12-01 17:00:00.000000', 1, 1800000.00, 1, '2025-11-30 08:52:01'),
+(16, 1, 'cancelled', '2025-12-01 17:00:00.000000', '2025-12-04 17:00:00.000000', 1, 900000.00, 1, '2025-11-30 10:03:36'),
+(17, 1, 'cancelled', '2025-12-01 17:00:00.000000', '2025-12-04 17:00:00.000000', 1, 900000.00, 1, '2025-11-30 10:03:36'),
+(18, 1, 'checked-out', '2025-12-01 17:00:00.000000', '2025-12-03 17:00:00.000000', 2, 600000.00, 1, '2025-11-30 10:47:38'),
+(19, 2, 'checked-out', '2025-12-05 17:00:00.000000', '2025-12-07 17:00:00.000000', 2, 2700000.00, 1, '2025-11-30 10:55:52'),
+(20, 1, 'checked-out', '2025-12-01 17:00:00.000000', '2025-12-02 17:00:00.000000', 1, 2500000.00, 1, '2025-11-30 16:34:48'),
+(21, 3, 'cancelled', '2025-12-03 17:00:00.000000', '2025-12-05 17:00:00.000000', 4, 2800000.00, 1, '2025-12-03 06:16:18'),
+(22, 2, 'checked-out', '2025-12-03 17:00:00.000000', '2025-12-05 17:00:00.000000', 3, 3300000.00, 1, '2025-12-03 06:53:56'),
+(23, 1, 'checked-out', '2025-12-04 00:00:00.000000', '2025-12-06 00:00:00.000000', 1, 5700000.00, 1, '2025-12-03 06:58:17'),
+(24, 1, 'checked-out', '2025-12-07 00:00:00.000000', '2025-12-08 00:00:00.000000', 2, 1000000.00, 1, '2025-12-03 08:04:03'),
+(25, 1, 'checked-out', '2025-12-04 00:00:00.000000', '2025-12-05 00:00:00.000000', 2, 1650000.00, 1, '2025-12-03 08:22:02'),
+(26, 1, 'checked-out', '2025-12-04 00:00:00.000000', '2025-12-05 00:00:00.000000', 4, 1350000.00, 1, '2025-12-03 08:38:52'),
+(27, 1, 'checked-out', '2025-12-05 00:00:00.000000', '2025-12-07 00:00:00.000000', 6, 3300000.00, 1, '2025-12-03 12:49:26'),
+(28, 1, 'checked-out', '2025-12-04 00:00:00.000000', '2025-12-07 00:00:00.000000', 2, 2100000.00, 1, '2025-12-03 12:50:59'),
+(29, 1, 'checked-in', '2025-12-04 00:00:00.000000', '2025-12-05 00:00:00.000000', 1, 700000.00, 1, '2025-12-03 13:32:16'),
+(30, 2, 'confirmed', '2025-12-04 00:00:00.000000', '2025-12-06 00:00:00.000000', 2, 600000.00, 1, '2025-12-03 13:42:04'),
+(31, 1, 'confirmed', '2025-12-10 00:00:00.000000', '2025-12-30 00:00:00.000000', 6, 89000000.00, 1, '2025-12-04 14:59:44');
 
 -- --------------------------------------------------------
 
@@ -155,11 +205,29 @@ CREATE TABLE `reservation_rooms` (
 --
 
 INSERT INTO `reservation_rooms` (`id`, `reservation_id`, `room_id`, `room_type_id`, `price`, `price_per_night`) VALUES
-(6, 1, 1, 1, 300000.00, 300000.00),
-(7, 1, 3, 2, 300000.00, 300000.00),
-(8, 2, 2, 5, 700000.00, 700000.00),
-(9, 2, 4, 5, 700000.00, 700000.00),
-(10, 3, 5, 3, 1500000.00, 1500000.00);
+(36, 13, 5, 3, 7500000.00, 1500000.00),
+(45, 14, 4, 5, 2700000.00, 1350000.00),
+(46, 14, 3, 2, 1400000.00, 700000.00),
+(49, 18, 1, 1, NULL, 300000.00),
+(50, 19, 2, 5, NULL, 1350000.00),
+(51, 20, 5, 3, NULL, 1500000.00),
+(52, 20, 3, 2, NULL, 700000.00),
+(53, 20, 1, 1, NULL, 300000.00),
+(56, 22, 1, 1, NULL, 300000.00),
+(57, 22, 2, 5, NULL, 1350000.00),
+(58, 23, 5, 3, NULL, 1500000.00),
+(59, 23, 4, 5, NULL, 1350000.00),
+(60, 24, 1, 1, NULL, 300000.00),
+(61, 24, 21, 2, NULL, 700000.00),
+(62, 25, 1, 1, NULL, 300000.00),
+(63, 25, 2, 5, NULL, 1350000.00),
+(64, 26, 2, 5, NULL, 1350000.00),
+(65, 27, 1, 1, NULL, 300000.00),
+(66, 27, 2, 5, NULL, 1350000.00),
+(67, 28, 3, 2, NULL, 700000.00),
+(68, 29, 3, 2, NULL, 700000.00),
+(69, 30, 1, 1, NULL, 300000.00),
+(70, 31, 29, 9, NULL, 4450000.00);
 
 -- --------------------------------------------------------
 
@@ -169,7 +237,7 @@ INSERT INTO `reservation_rooms` (`id`, `reservation_id`, `room_id`, `room_type_i
 
 CREATE TABLE `roles` (
   `role_id` int(11) NOT NULL,
-  `role_name` varchar(100) NOT NULL
+  `role_name` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -201,12 +269,13 @@ CREATE TABLE `rooms` (
 --
 
 INSERT INTO `rooms` (`room_id`, `room_number`, `room_type_id`, `floor`, `status_id`, `image`) VALUES
-(1, '101', 1, '1', 1, 'uploads/rooms/standard.jpg\n'),
-(2, '102', 5, '1', 4, 'uploads/rooms/standard.jpg'),
+(1, '101', 1, '1', 7, 'uploads/rooms/standard.jpg'),
+(2, '102', 5, '1', 1, 'uploads/rooms/deluxe.jpg'),
 (3, '201', 2, '2', 2, 'uploads/rooms/deluxe.jpg'),
 (4, '202', 5, '2', 5, 'uploads/rooms/deluxe.jpg'),
-(5, '301', 3, '3', 3, 'uploads/rooms/vip.jpg'),
-(21, '203', 1, '2', 1, 'uploads/rooms/vip.jpg');
+(5, '301', 3, '3', 1, 'uploads/rooms/standard.jpg'),
+(21, '203', 2, '2', 1, 'uploads/rooms/deluxe.jpg'),
+(29, '304', 9, '3', 1, 'uploads/rooms/vip.jpg');
 
 -- --------------------------------------------------------
 
@@ -225,10 +294,11 @@ CREATE TABLE `room_statuses` (
 
 INSERT INTO `room_statuses` (`status_id`, `name`) VALUES
 (1, 'Còn Trống'),
-(2, 'Đang dùng phòng'),
+(2, 'Đã nhận phòng'),
 (3, 'Đã trả phòng'),
 (4, 'Dọn dẹp'),
-(5, 'Đang bảo trì');
+(5, 'Đang bảo trì'),
+(7, 'Đã đặt');
 
 -- --------------------------------------------------------
 
@@ -278,6 +348,35 @@ CREATE TABLE `stays` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Đang đổ dữ liệu cho bảng `stays`
+--
+
+INSERT INTO `stays` (`stay_id`, `reservation_id`, `guest_id`, `room_id`, `checkin_time`, `checkout_time`, `total_cost`, `status`, `created_by_user_id`, `created_at`) VALUES
+(1, 13, 1, 5, '2025-11-30 09:53:49', '2025-11-30 09:54:32', 7500000.00, 'checked-out', 1, '2025-11-30 09:53:49'),
+(2, 14, 3, 4, '2025-11-30 09:55:52', '2025-11-30 09:57:48', 2700000.00, 'checked-out', 1, '2025-11-30 09:55:52'),
+(3, 14, 3, 3, '2025-11-30 09:55:52', '2025-11-30 09:57:48', 1400000.00, 'checked-out', 1, '2025-11-30 09:55:52'),
+(4, 18, 1, 1, '2025-11-30 10:48:02', '2025-11-30 10:48:25', 300000.00, 'checked-out', 1, '2025-11-30 10:48:02'),
+(5, 19, 2, 2, '2025-11-30 16:33:36', '2025-11-30 16:33:40', 1350000.00, 'checked-out', 1, '2025-11-30 16:33:36'),
+(6, 19, 2, 2, '2025-11-30 16:33:36', '2025-11-30 16:33:40', 1350000.00, 'checked-out', 1, '2025-11-30 16:33:36'),
+(7, 19, 2, 2, '2025-11-30 16:33:36', '2025-11-30 16:33:40', 1350000.00, 'checked-out', 1, '2025-11-30 16:33:36'),
+(8, 20, 1, 5, '2025-11-30 16:34:57', '2025-11-30 16:35:04', 1500000.00, 'checked-out', 1, '2025-11-30 16:34:57'),
+(9, 20, 1, 3, '2025-11-30 16:34:57', '2025-11-30 16:35:04', 700000.00, 'checked-out', 1, '2025-11-30 16:34:57'),
+(10, 20, 1, 1, '2025-11-30 16:34:57', '2025-11-30 16:35:04', 300000.00, 'checked-out', 1, '2025-11-30 16:34:57'),
+(11, 23, 1, 5, '2025-12-03 06:58:55', '2025-12-03 07:34:39', 1500000.00, 'checked-out', 1, '2025-12-03 06:58:55'),
+(12, 23, 1, 4, '2025-12-03 06:58:55', '2025-12-03 07:34:39', 1350000.00, 'checked-out', 1, '2025-12-03 06:58:55'),
+(13, 22, 2, 1, '2025-12-03 07:35:03', '2025-12-03 07:35:12', 300000.00, 'checked-out', 1, '2025-12-03 07:35:03'),
+(14, 22, 2, 2, '2025-12-03 07:35:03', '2025-12-03 07:35:12', 1350000.00, 'checked-out', 1, '2025-12-03 07:35:03'),
+(15, 24, 1, 1, '2025-12-03 08:04:44', '2025-12-03 08:18:44', 300000.00, 'checked-out', 1, '2025-12-03 08:04:44'),
+(16, 24, 1, 21, '2025-12-03 08:04:44', '2025-12-03 08:18:44', 700000.00, 'checked-out', 1, '2025-12-03 08:04:44'),
+(17, 25, 1, 1, '2025-12-03 08:22:27', '2025-12-03 08:35:13', 300000.00, 'checked-out', 1, '2025-12-03 08:22:27'),
+(18, 25, 1, 2, '2025-12-03 08:22:27', '2025-12-03 08:35:13', 1350000.00, 'checked-out', 1, '2025-12-03 08:22:27'),
+(19, 26, 1, 2, '2025-12-03 08:39:08', '2025-12-03 08:39:33', 1350000.00, 'checked-out', 1, '2025-12-03 08:39:08'),
+(20, 27, 1, 1, '2025-12-03 12:49:42', '2025-12-03 12:49:48', 300000.00, 'checked-out', 1, '2025-12-03 12:49:42'),
+(21, 27, 1, 2, '2025-12-03 12:49:42', '2025-12-03 12:49:48', 1350000.00, 'checked-out', 1, '2025-12-03 12:49:42'),
+(22, 28, 1, 3, '2025-12-03 12:51:49', '2025-12-03 12:52:23', 700000.00, 'checked-out', 1, '2025-12-03 12:51:49'),
+(23, 29, 1, 3, '2025-12-03 13:36:52', '2025-12-03 13:36:52', 700000.00, 'checked-in', 1, '2025-12-03 13:36:52');
+
 -- --------------------------------------------------------
 
 --
@@ -286,12 +385,12 @@ CREATE TABLE `stays` (
 
 CREATE TABLE `users` (
   `user_id` int(11) NOT NULL,
-  `username` varchar(100) NOT NULL,
+  `username` varchar(255) DEFAULT NULL,
   `password` varchar(255) NOT NULL,
-  `full_name` varchar(150) NOT NULL,
+  `full_name` varchar(255) DEFAULT NULL,
   `role_id` int(11) NOT NULL,
-  `email` varchar(150) NOT NULL,
-  `phone` varchar(20) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `phone` varchar(255) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -342,7 +441,15 @@ ALTER TABLE `invoice_items`
 --
 ALTER TABLE `items`
   ADD PRIMARY KEY (`item_id`),
-  ADD UNIQUE KEY `item_id` (`item_id`);
+  ADD UNIQUE KEY `item_id` (`item_id`),
+  ADD KEY `fk_items_item_type_id` (`item_type_id`);
+
+--
+-- Chỉ mục cho bảng `item_types`
+--
+ALTER TABLE `item_types`
+  ADD PRIMARY KEY (`item_type_id`),
+  ADD UNIQUE KEY `item_type_id` (`item_type_id`);
 
 --
 -- Chỉ mục cho bảng `payments`
@@ -451,7 +558,13 @@ ALTER TABLE `invoice_items`
 -- AUTO_INCREMENT cho bảng `items`
 --
 ALTER TABLE `items`
-  MODIFY `item_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+
+--
+-- AUTO_INCREMENT cho bảng `item_types`
+--
+ALTER TABLE `item_types`
+  MODIFY `item_type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `payments`
@@ -463,13 +576,13 @@ ALTER TABLE `payments`
 -- AUTO_INCREMENT cho bảng `reservations`
 --
 ALTER TABLE `reservations`
-  MODIFY `reservation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `reservation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT cho bảng `reservation_rooms`
 --
 ALTER TABLE `reservation_rooms`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=71;
 
 --
 -- AUTO_INCREMENT cho bảng `roles`
@@ -481,13 +594,13 @@ ALTER TABLE `roles`
 -- AUTO_INCREMENT cho bảng `rooms`
 --
 ALTER TABLE `rooms`
-  MODIFY `room_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `room_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT cho bảng `room_statuses`
 --
 ALTER TABLE `room_statuses`
-  MODIFY `status_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `status_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT cho bảng `room_types`
@@ -499,7 +612,7 @@ ALTER TABLE `room_types`
 -- AUTO_INCREMENT cho bảng `stays`
 --
 ALTER TABLE `stays`
-  MODIFY `stay_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `stay_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT cho bảng `users`
@@ -526,6 +639,12 @@ ALTER TABLE `invoice_items`
   ADD CONSTRAINT `invoice_items_ibfk_1` FOREIGN KEY (`invoice_id`) REFERENCES `invoice` (`invoice_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   ADD CONSTRAINT `invoice_items_ibfk_2` FOREIGN KEY (`posted_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   ADD CONSTRAINT `invoice_items_ibfk_3` FOREIGN KEY (`item_id`) REFERENCES `items` (`item_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+--
+-- Các ràng buộc cho bảng `items`
+--
+ALTER TABLE `items`
+  ADD CONSTRAINT `fk_items_item_type_id` FOREIGN KEY (`item_type_id`) REFERENCES `item_types` (`item_type_id`);
 
 --
 -- Các ràng buộc cho bảng `payments`

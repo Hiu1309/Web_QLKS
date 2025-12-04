@@ -146,7 +146,7 @@ export function PaymentDialog({
                   <div className="flex justify-between">
                     <span className="text-gray-600">Phòng:</span>
                     <span className="font-medium">
-                      #{invoice.roomNumber} ({invoice.roomType})
+                      {invoice.roomNumber} ({invoice.roomType})
                     </span>
                   </div>
                   <div className="flex justify-between">

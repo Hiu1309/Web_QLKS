@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,15 +20,33 @@ import {
 import { Plus, Sparkles, DollarSign, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
-interface AddServiceDialogProps {
-  trigger?: React.ReactNode;
-  onCreated?: (service: any) => void;
+interface ItemType {
+  itemTypeId: number;
+  typeName: string;
 }
 
-export function AddServiceDialog({
+interface Service {
+  itemId?: number;
+  itemName: string;
+  price: number;
+  status: string;
+  image: string;
+  itemType: {
+    itemTypeId: number;
+  };
+}
+
+interface AddEditServiceDialogProps {
+  service?: Service & { itemType?: ItemType };
+  trigger?: React.ReactNode;
+  onSave?: (service: any) => void;
+}
+
+export function AddEditServiceDialog({
+  service,
   trigger,
-  onCreated,
-}: AddServiceDialogProps) {
+  onSave,
+}: AddEditServiceDialogProps) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     itemName: "",
@@ -38,11 +56,33 @@ export function AddServiceDialog({
     itemTypeId: "1",
   });
 
-  const [itemTypes, setItemTypes] = useState([
+  const [itemTypes] = useState([
     { itemTypeId: 1, typeName: "Tiện ích" },
     { itemTypeId: 2, typeName: "Sức khỏe" },
     { itemTypeId: 3, typeName: "Ăn uống" },
   ]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (service) {
+      setFormData({
+        itemName: service.itemName,
+        price: service.price.toString(),
+        status: service.status,
+        image: service.image || "uploads/services/",
+        itemTypeId: service.itemType?.itemTypeId?.toString() || "1",
+      });
+    } else {
+      setFormData({
+        itemName: "",
+        price: "",
+        status: "Còn hoạt động",
+        image: "uploads/services/",
+        itemTypeId: "1",
+      });
+    }
+  }, [open, service]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,28 +103,30 @@ export function AddServiceDialog({
         },
       };
 
-      const res = await fetch("http://localhost:8080/api/items", {
-        method: "POST",
+      const method = service?.itemId ? "PUT" : "POST";
+      const url = service?.itemId
+        ? `http://localhost:8080/api/items/${service.itemId}`
+        : "http://localhost:8080/api/items";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Add service failed");
+      if (!res.ok) throw new Error("Save service failed");
 
       const data = await res.json();
-      toast.success("Thêm dịch vụ thành công!");
-      onCreated && onCreated(data);
+      toast.success(
+        service ? "Cập nhật dịch vụ thành công!" : "Thêm dịch vụ thành công!"
+      );
+      onSave && onSave(data);
       setOpen(false);
-      setFormData({
-        itemName: "",
-        price: "",
-        status: "Còn hoạt động",
-        image: "uploads/services/",
-        itemTypeId: "1",
-      });
     } catch (err) {
       console.error(err);
-      toast.error("Thêm dịch vụ thất bại!");
+      toast.error(
+        service ? "Cập nhật dịch vụ thất bại!" : "Thêm dịch vụ thất bại!"
+      );
     }
   };
 
@@ -101,10 +143,12 @@ export function AddServiceDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader>
           <DialogTitle className="text-2xl text-gray-800">
-            Thêm Dịch Vụ Mới
+            {service ? "Chỉnh Sửa Dịch Vụ" : "Thêm Dịch Vụ Mới"}
           </DialogTitle>
           <DialogDescription className="text-gray-600">
-            Tạo dịch vụ mới để cung cấp cho khách hàng
+            {service
+              ? "Cập nhật thông tin dịch vụ"
+              : "Tạo dịch vụ mới để cung cấp cho khách hàng"}
           </DialogDescription>
         </DialogHeader>
 
@@ -241,7 +285,7 @@ export function AddServiceDialog({
               type="submit"
               className="flex-1 bg-gray-700 hover:bg-gray-800 text-white"
             >
-              Thêm Dịch Vụ
+              {service ? "Cập Nhật" : "Thêm Dịch Vụ"}
             </Button>
           </div>
         </form>

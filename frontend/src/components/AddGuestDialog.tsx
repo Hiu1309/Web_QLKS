@@ -1,64 +1,141 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Textarea } from './ui/textarea';
-import { Calendar } from './ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { CalendarIcon, UserPlus, Mail, Phone, MapPin, CreditCard, Flag } from 'lucide-react';
-import { format } from 'date-fns@3.6.0';
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Textarea } from "./ui/textarea";
+import { Calendar } from "./ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import {
+  CalendarIcon,
+  UserPlus,
+  Mail,
+  Phone,
+  MapPin,
+  CreditCard,
+  Flag,
+} from "lucide-react";
+import { format } from "date-fns";
 
 interface AddGuestDialogProps {
   trigger?: React.ReactNode;
+  onCreated?: (guest: any) => void;
+  initial?: Partial<any>;
 }
 
-export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
+export function AddGuestDialog({
+  trigger,
+  onCreated,
+  initial,
+}: AddGuestDialogProps) {
   const [open, setOpen] = useState(false);
   const [dateOfBirth, setDateOfBirth] = useState<Date>();
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    idType: 'passport',
-    idNumber: '',
-    nationality: 'India',
-    gender: 'male',
-    address: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: 'India',
-    vipStatus: 'regular',
-    notes: ''
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    idType: "passport",
+    idNumber: "",
+    nationality: "India",
+    gender: "male",
+    address: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "India",
+    vipStatus: "regular",
+    notes: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // populate from initial
+  useEffect(() => {
+    if (!initial) return;
+    const nameParts = (initial.fullName || "").split(" ");
+    const firstName = nameParts.slice(-1).join(" ") || "";
+    const lastName = nameParts.slice(0, -1).join(" ") || "";
+    setFormData((prev) => ({
+      ...prev,
+      firstName: firstName || prev.firstName,
+      lastName: lastName || prev.lastName,
+      email: initial.email || prev.email,
+      phone: initial.phone || prev.phone,
+      idType: initial.idType
+        ? initial.idType === "CCCD" || initial.idType === "CMND"
+          ? "national-id"
+          : initial.idType === "Hộ chiếu" || initial.idType === "Hộ Chiếu"
+          ? "passport"
+          : initial.idType
+        : prev.idType,
+      idNumber: initial.idNumber || prev.idNumber,
+    }));
+  }, [initial]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Guest added:', {
+    console.log("Guest added:", {
       ...formData,
-      dateOfBirth
+      dateOfBirth,
     });
-    setOpen(false);
+    // Create guest in backend and call onCreated
+    const payload = {
+      fullName: `${formData.firstName} ${formData.lastName}`.trim(),
+      email: formData.email,
+      phone: formData.phone,
+      dob: dateOfBirth ? dateOfBirth.toISOString() : null,
+      idType:
+        formData.idType === "national-id"
+          ? "CCCD"
+          : formData.idType === "passport"
+          ? "Hộ chiếu"
+          : formData.idType,
+      idNumber: formData.idNumber,
+    };
+    try {
+      const res = await fetch("http://localhost:8080/api/guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Add guest failed");
+      const created = await res.json();
+      onCreated && onCreated(created);
+      setOpen(false);
+    } catch (err) {
+      console.error(err);
+      setOpen(false);
+    }
     // Reset form
     setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      idType: 'passport',
-      idNumber: '',
-      nationality: 'India',
-      gender: 'male',
-      address: '',
-      city: '',
-      state: '',
-      postalCode: '',
-      country: 'India',
-      vipStatus: 'regular',
-      notes: ''
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      idType: "passport",
+      idNumber: "",
+      nationality: "India",
+      gender: "male",
+      address: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "India",
+      vipStatus: "regular",
+      notes: "",
     });
     setDateOfBirth(undefined);
   };
@@ -75,12 +152,14 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-gray-800">Thêm Khách Hàng Mới</DialogTitle>
+          <DialogTitle className="text-2xl text-gray-800">
+            Thêm Khách Hàng Mới
+          </DialogTitle>
           <DialogDescription className="text-gray-600">
             Nhập thông tin chi tiết của khách hàng để thêm vào hệ thống
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6 mt-4">
           {/* Personal Information */}
           <div className="space-y-4">
@@ -94,7 +173,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                 <Input
                   id="firstName"
                   value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, firstName: e.target.value })
+                  }
                   required
                   className="border-gray-300 focus:border-gray-500"
                   placeholder="Văn A"
@@ -105,7 +186,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                 <Input
                   id="lastName"
                   value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, lastName: e.target.value })
+                  }
                   required
                   className="border-gray-300 focus:border-gray-500"
                   placeholder="Nguyễn"
@@ -113,7 +196,12 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
               </div>
               <div>
                 <Label htmlFor="gender">Giới Tính *</Label>
-                <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
+                <Select
+                  value={formData.gender}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, gender: value })
+                  }
+                >
                   <SelectTrigger className="border-gray-300">
                     <SelectValue />
                   </SelectTrigger>
@@ -133,7 +221,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                       className="w-full justify-start text-left border-gray-300 hover:bg-gray-50"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateOfBirth ? format(dateOfBirth, 'dd/MM/yyyy') : 'Chọn ngày sinh'}
+                      {dateOfBirth
+                        ? format(dateOfBirth, "dd/MM/yyyy")
+                        : "Chọn ngày sinh"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 bg-white" align="start">
@@ -141,7 +231,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                       mode="single"
                       selected={dateOfBirth}
                       onSelect={setDateOfBirth}
-                      disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("1900-01-01")
+                      }
                       captionLayout="dropdown-buttons"
                       fromYear={1900}
                       toYear={new Date().getFullYear()}
@@ -151,7 +243,12 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
               </div>
               <div>
                 <Label htmlFor="nationality">Quốc Tịch *</Label>
-                <Select value={formData.nationality} onValueChange={(value) => setFormData({ ...formData, nationality: value })}>
+                <Select
+                  value={formData.nationality}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, nationality: value })
+                  }
+                >
                   <SelectTrigger className="border-gray-300">
                     <SelectValue />
                   </SelectTrigger>
@@ -184,7 +281,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
                     required
                     className="pl-10 border-gray-300 focus:border-gray-500"
                     placeholder="example@email.com"
@@ -199,7 +298,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                     id="phone"
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
                     required
                     className="pl-10 border-gray-300 focus:border-gray-500"
                     placeholder="+91 98765 43210"
@@ -218,7 +319,12 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="idType">Loại Giấy Tờ *</Label>
-                <Select value={formData.idType} onValueChange={(value) => setFormData({ ...formData, idType: value })}>
+                <Select
+                  value={formData.idType}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, idType: value })
+                  }
+                >
                   <SelectTrigger className="border-gray-300">
                     <SelectValue />
                   </SelectTrigger>
@@ -235,7 +341,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                 <Input
                   id="idNumber"
                   value={formData.idNumber}
-                  onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, idNumber: e.target.value })
+                  }
                   required
                   className="border-gray-300 focus:border-gray-500"
                   placeholder="001234567890"
@@ -256,7 +364,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                 <Input
                   id="address"
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
                   required
                   className="border-gray-300 focus:border-gray-500"
                   placeholder="123 Đường ABC"
@@ -268,7 +378,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                   <Input
                     id="city"
                     value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, city: e.target.value })
+                    }
                     required
                     className="border-gray-300 focus:border-gray-500"
                     placeholder="Mumbai"
@@ -279,7 +391,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                   <Input
                     id="state"
                     value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, state: e.target.value })
+                    }
                     required
                     className="border-gray-300 focus:border-gray-500"
                     placeholder="Maharashtra"
@@ -290,7 +404,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                   <Input
                     id="postalCode"
                     value={formData.postalCode}
-                    onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, postalCode: e.target.value })
+                    }
                     required
                     className="border-gray-300 focus:border-gray-500"
                     placeholder="400001"
@@ -299,7 +415,12 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
               </div>
               <div>
                 <Label htmlFor="country">Quốc Gia *</Label>
-                <Select value={formData.country} onValueChange={(value) => setFormData({ ...formData, country: value })}>
+                <Select
+                  value={formData.country}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, country: value })
+                  }
+                >
                   <SelectTrigger className="border-gray-300">
                     <SelectValue />
                   </SelectTrigger>
@@ -324,7 +445,12 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="vipStatus">Trạng Thái VIP</Label>
-                <Select value={formData.vipStatus} onValueChange={(value) => setFormData({ ...formData, vipStatus: value })}>
+                <Select
+                  value={formData.vipStatus}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, vipStatus: value })
+                  }
+                >
                   <SelectTrigger className="border-gray-300">
                     <SelectValue />
                   </SelectTrigger>
@@ -342,7 +468,9 @@ export function AddGuestDialog({ trigger }: AddGuestDialogProps) {
                 <Textarea
                   id="notes"
                   value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, notes: e.target.value })
+                  }
                   className="border-gray-300 focus:border-gray-500 h-24"
                   placeholder="Ghi chú đặc biệt về khách hàng..."
                 />

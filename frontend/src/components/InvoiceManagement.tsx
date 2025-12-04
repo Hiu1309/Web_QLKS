@@ -192,7 +192,7 @@ export function InvoiceManagement() {
                   <TableCell>
                     <div>
                       <p className="font-medium text-slate-700">
-                        #{invoice.roomNumber}
+                        {invoice.roomNumber}
                       </p>
                       <p className="text-sm text-slate-500">
                         {invoice.roomType}
@@ -200,13 +200,16 @@ export function InvoiceManagement() {
                     </div>
                   </TableCell>
                   <TableCell className="text-slate-600">
-                    ₹{invoice.roomPrice.toLocaleString()}
+                    {invoice.roomPrice.toLocaleString("vi-VN")} đ
                   </TableCell>
                   <TableCell className="text-slate-600">
                     {invoice.nights}
                   </TableCell>
                   <TableCell className="font-medium text-emerald-600">
-                    ₹{(invoice.roomPrice * invoice.nights).toLocaleString()}
+                    {(invoice.roomPrice * invoice.nights).toLocaleString(
+                      "vi-VN"
+                    )}{" "}
+                    đ
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -286,7 +289,7 @@ export function InvoiceManagement() {
                                     Phòng
                                   </Label>
                                   <p className="font-medium text-slate-700">
-                                    #{selectedInvoice.roomNumber} (
+                                    {selectedInvoice.roomNumber} (
                                     {selectedInvoice.roomType})
                                   </p>
                                 </div>
@@ -295,8 +298,10 @@ export function InvoiceManagement() {
                                     Giá Phòng/Đêm
                                   </Label>
                                   <p className="font-medium text-slate-700">
-                                    ₹
-                                    {selectedInvoice.roomPrice.toLocaleString()}
+                                    {selectedInvoice.roomPrice.toLocaleString(
+                                      "vi-VN"
+                                    )}{" "}
+                                    đ
                                   </p>
                                 </div>
                                 <div>
