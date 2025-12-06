@@ -45,7 +45,7 @@ const statusColors: Record<string, string> = {
   "Đã nhận phòng": "#ef4444",
   "Đang bảo trì": "#facc15",
   "Dọn dẹp": "#6b7280",
-  "Đã trả phòng": "#3b82f6",
+  "Đã trả phòng": "#fba119ff",
 };
 
 const statusLabels: Record<string, string> = {

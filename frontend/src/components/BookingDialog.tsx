@@ -134,7 +134,7 @@ export function BookingDialog({
       departureDate: toLocalIsoString(checkOutDate),
       numGuests: parseInt(formData.numberOfGuests || "1"),
       totalEstimated: calculateTotal(),
-      status: "confirmed",
+      status: "booking",
       reservationRooms: selectedRoomObjects.map((r) => ({
         room: { roomId: r.roomId },
         roomType: r.roomType

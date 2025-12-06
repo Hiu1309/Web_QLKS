@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import {
@@ -42,11 +41,7 @@ import { ReservationEditDialog } from "./ReservationEditDialog";
 import { Search, Plus, Eye, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-type ReservationStatus =
-  | "checked-in"
-  | "checked-out"
-  | "confirmed"
-  | "cancelled";
+type ReservationStatus = "booking" | "checked-in" | "checked-out" | "cancelled";
 
 interface ReservationRoomDto {
   id?: number | string;
@@ -60,40 +55,71 @@ interface ReservationRoomDto {
 
 interface Reservation {
   reservationId: number;
-  guest: { guestId: number; fullName: string; email?: string; phone?: string };
+  guest: {
+    guestId: number;
+    fullName: string;
+    email?: string;
+    phone?: string;
+    idNumber?: string;
+  };
   arrivalDate: string;
   departureDate: string;
   numGuests: number;
   totalEstimated: number;
   status: ReservationStatus | string;
   reservationRooms?: ReservationRoomDto[];
+  user?: { userId: number; username: string; fullName?: string };
 }
 
 const API_BASE =
   ((import.meta as any).env?.VITE_API_BASE as string) ||
   "http://localhost:8080";
 
-const statusColors: Record<string, string> = {
-  confirmed: "bg-blue-100 text-blue-800",
-  "checked-in": "bg-green-100 text-green-800",
-  "checked-out": "bg-gray-100 text-gray-800",
-  cancelled: "bg-red-100 text-red-800",
-};
-
 const statusText = (s: string | undefined) => {
   const key = (s || "").toLowerCase();
   switch (key) {
-    case "confirmed":
+    case "booking":
       return "Đã đặt";
     case "checked-in":
       return "Đã nhận phòng";
     case "checked-out":
-      return "Hoàn Thành";
+      return "Đã trả phòng";
     case "cancelled":
-      return "Đã hủy";
+      return "Đã hủy phòng";
     default:
       return s || "-";
   }
+};
+
+const statusColorMap: Record<string, { bg: string; text: string }> = {
+  booking: { bg: "#0ea5e9", text: "#ffffff" },
+  "checked-in": { bg: "#fbbf24", text: "#ffffff" },
+  "checked-out": { bg: "#22c55e", text: "#ffffff" },
+  cancelled: { bg: "#ef4444", text: "#ffffff" },
+};
+
+const StatusBadge = ({ status }: { status: string | undefined }) => {
+  const statusLower = (status || "").toLowerCase();
+  const colors = statusColorMap[statusLower];
+
+  if (!colors) return null;
+
+  return (
+    <span
+      style={{
+        backgroundColor: colors.bg,
+        color: colors.text,
+        padding: "0.3rem 0.5rem",
+        borderRadius: "0.9rem",
+        fontWeight: 600,
+        fontSize: "0.875rem",
+        display: "inline-block",
+        border: "none",
+      }}
+    >
+      {statusText(status)}
+    </span>
+  );
 };
 
 const formatCurrency = (val?: number | string | null) => {
@@ -138,6 +164,17 @@ const calculateReservationTotal = (reservation: Reservation | null) => {
   return total;
 };
 
+const formatDateDisplay = (value?: string) => {
+  if (!value) return "-";
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleDateString("vi-VN"); // dd/mm/yyyy
+  } catch (err) {
+    return value;
+  }
+};
+
 export function ReservationManagement() {
   const [reservationsList, setReservationsList] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -151,16 +188,13 @@ export function ReservationManagement() {
     fetch(`${API_BASE}/api/reservations`)
       .then((r) => r.json())
       .then((data) => {
-        // Filter out cancelled reservations and sort newest createdAt first
-        const filtered = (data || []).filter(
-          (d: any) => (d.status || "").toLowerCase() !== "cancelled"
-        );
-        filtered.sort((a: any, b: any) => {
+        // Hiển thị cả các đặt phòng đã hủy; sắp xếp mới nhất trước
+        const sorted = (data || []).slice().sort((a: any, b: any) => {
           const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return bTime - aTime;
         });
-        setReservationsList(filtered);
+        setReservationsList(sorted);
       })
       .catch(() => toast.error("Không tải được danh sách đặt phòng"))
       .finally(() => setLoading(false));
@@ -285,14 +319,19 @@ export function ReservationManagement() {
 
   const filteredReservations = reservationsList.filter((reservation) => {
     const guestName = reservation.guest?.fullName || "";
+    const guestPhone = reservation.guest?.phone || "";
+    const roomNumbers =
+      reservation.reservationRooms
+        ?.map((rr) => rr.room?.roomNumber || rr.roomNumber || "")
+        .join(" ") || "";
+    const reservationId = reservation.reservationId?.toString() || "";
+
     const matchesSearch =
       guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (reservation.reservationId?.toString() || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      (reservation.guest?.email || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      guestPhone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      roomNumbers.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reservationId.includes(searchTerm);
+
     const matchesStatus =
       statusFilter === "all" ||
       (reservation.status || "").toLowerCase() === statusFilter.toLowerCase();
@@ -321,7 +360,7 @@ export function ReservationManagement() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
           <Input
-            placeholder="Tìm kiếm theo tên khách, email hoặc mã đặt phòng..."
+            placeholder="Tìm kiếm theo mã, tên khách, số điện thoại hoặc số phòng..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-white border-slate-200"
@@ -334,8 +373,10 @@ export function ReservationManagement() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất Cả Trạng Thái</SelectItem>
+            <SelectItem value="booking">Đã Đặt</SelectItem>
             <SelectItem value="checked-in">Đã Nhận Phòng</SelectItem>
             <SelectItem value="checked-out">Đã Trả Phòng</SelectItem>
+            <SelectItem value="cancelled">Đã Hủy Phòng</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -413,10 +454,10 @@ export function ReservationManagement() {
                     </div>
                   </TableCell>
                   <TableCell className="text-slate-600">
-                    {reservation.arrivalDate?.split("T")[0]}
+                    {formatDateDisplay(reservation.arrivalDate)}
                   </TableCell>
                   <TableCell className="text-slate-600">
-                    {reservation.departureDate?.split("T")[0]}
+                    {formatDateDisplay(reservation.departureDate)}
                   </TableCell>
                   <TableCell className="text-slate-600">
                     {Math.ceil(
@@ -426,17 +467,15 @@ export function ReservationManagement() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      className={
-                        statusColors[
-                          (
-                            reservation.status || ""
-                          ).toLowerCase() as ReservationStatus
-                        ] as any
-                      }
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.25rem",
+                      }}
                     >
-                      {statusText(reservation.status)}
-                    </Badge>
+                      <StatusBadge status={reservation.status} />
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2 items-center">
@@ -445,7 +484,33 @@ export function ReservationManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setSelectedReservation(reservation)}
+                            onClick={async () => {
+                              // Fetch chi tiết; nếu backend không trả reservationRooms (đặc biệt với trạng thái hủy), dùng dữ liệu hiện có để merge
+                              try {
+                                const res = await fetch(
+                                  `${API_BASE}/api/reservations/${reservation.reservationId}`
+                                );
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  const mergedRooms =
+                                    data?.reservationRooms &&
+                                    data.reservationRooms.length > 0
+                                      ? data.reservationRooms
+                                      : reservation.reservationRooms;
+                                  setSelectedReservation({
+                                    ...data,
+                                    reservationRooms: mergedRooms,
+                                  });
+                                  return;
+                                }
+                              } catch (e) {
+                                console.error(
+                                  "Load reservation detail failed",
+                                  e
+                                );
+                              }
+                              setSelectedReservation(reservation);
+                            }}
                             className="border-slate-300 hover:bg-slate-50"
                           >
                             <Eye className="h-4 w-4" />
@@ -461,8 +526,8 @@ export function ReservationManagement() {
                             selectedReservation.reservationId ===
                               reservation.reservationId && (
                               <div className="space-y-6 text-sm">
-                                {/* Header: ID + Status */}
-                                <div className="flex items-center justify-between">
+                                {/* Guest & basics */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                   <div>
                                     <Label className="text-slate-600">
                                       Mã Đặt Phòng
@@ -472,22 +537,17 @@ export function ReservationManagement() {
                                     </p>
                                   </div>
                                   <div>
-                                    <Badge
-                                      className={`mt-1 ${
-                                        statusColors[
-                                          (
-                                            selectedReservation.status || ""
-                                          ).toLowerCase() as ReservationStatus
-                                        ]
-                                      }`}
-                                    >
+                                    <Label className="text-slate-600">
+                                      Trạng thái
+                                    </Label>
+                                    <p className="font-medium text-slate-700">
                                       {statusText(selectedReservation.status)}
-                                    </Badge>
+                                    </p>
                                   </div>
+                                  <div />
                                 </div>
 
-                                {/* Guest & basics */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                   <div>
                                     <Label className="text-slate-600">
                                       Khách Hàng
@@ -496,67 +556,70 @@ export function ReservationManagement() {
                                       {selectedReservation.guest?.fullName}
                                     </p>
                                     <p className="text-sm text-slate-500">
-                                      {selectedReservation.guest?.email} •{" "}
-                                      {selectedReservation.guest?.phone}
+                                      {selectedReservation.guest?.idNumber ||
+                                        "-"}
+                                    </p>
+                                    <p className="text-sm text-slate-500">
+                                      {selectedReservation.guest?.phone || "-"}
                                     </p>
                                   </div>
-                                  <div className="flex items-center gap-6">
-                                    <div>
-                                      <Label className="text-slate-600">
-                                        Nhận / Trả
-                                      </Label>
-                                      <div className="flex items-center gap-4">
-                                        <div>
-                                          <p className="font-medium text-slate-700">
-                                            {
-                                              selectedReservation.arrivalDate?.split(
-                                                "T"
-                                              )[0]
-                                            }
-                                          </p>
-                                          <p className="text-sm text-slate-500">
-                                            Nhận
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <p className="font-medium text-slate-700">
-                                            {
-                                              selectedReservation.departureDate?.split(
-                                                "T"
-                                              )[0]
-                                            }
-                                          </p>
-                                          <p className="text-sm text-slate-500">
-                                            Trả
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <Label className="text-slate-600">
-                                        Số Đêm
-                                      </Label>
-                                      <p className="font-medium text-slate-700">
-                                        {Math.ceil(
-                                          (new Date(
-                                            selectedReservation.departureDate
-                                          ).getTime() -
-                                            new Date(
-                                              selectedReservation.arrivalDate
-                                            ).getTime()) /
-                                            (1000 * 60 * 60 * 24)
-                                        )}{" "}
-                                        đêm
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-slate-600">
-                                        Số khách
-                                      </Label>
-                                      <p className="font-medium text-slate-700">
-                                        {selectedReservation.numGuests}
-                                      </p>
-                                    </div>
+                                  <div>
+                                    <Label className="text-slate-600">
+                                      Nhận Phòng
+                                    </Label>
+                                    <p className="font-medium text-slate-700">
+                                      {formatDateDisplay(
+                                        selectedReservation.arrivalDate
+                                      )}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <Label className="text-slate-600">
+                                      Trả Phòng
+                                    </Label>
+                                    <p className="font-medium text-slate-700">
+                                      {formatDateDisplay(
+                                        selectedReservation.departureDate
+                                      )}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div>
+                                    <Label className="text-slate-600">
+                                      Số Đêm
+                                    </Label>
+                                    <p className="font-medium text-slate-700">
+                                      {Math.ceil(
+                                        (new Date(
+                                          selectedReservation.departureDate
+                                        ).getTime() -
+                                          new Date(
+                                            selectedReservation.arrivalDate
+                                          ).getTime()) /
+                                          (1000 * 60 * 60 * 24)
+                                      )}{" "}
+                                      đêm
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <Label className="text-slate-600">
+                                      Số khách
+                                    </Label>
+                                    <p className="font-medium text-slate-700">
+                                      {selectedReservation.numGuests}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <Label className="text-slate-600">
+                                      Người tạo
+                                    </Label>
+                                    <p className="font-medium text-slate-700">
+                                      {selectedReservation.user?.fullName ||
+                                        selectedReservation.user?.username ||
+                                        "-"}
+                                    </p>
                                   </div>
                                 </div>
 
@@ -616,27 +679,78 @@ export function ReservationManagement() {
                             )}
                         </DialogContent>
                       </Dialog>
-                      {(reservation.status || "").toLowerCase() ===
-                        "confirmed" && (
-                        <ReservationEditDialog
-                          reservation={reservation}
-                          onSave={(updated) => {
-                            fetchReservations();
-                            if (updated) setSelectedReservation(updated);
-                          }}
-                          trigger={
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-slate-300 hover:bg-slate-50"
+                      <ReservationEditDialog
+                        reservation={reservation}
+                        onSave={(updated) => {
+                          fetchReservations();
+                          if (updated) setSelectedReservation(updated);
+                        }}
+                        trigger={
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-slate-300 hover:bg-slate-50"
+                            disabled={
+                              (reservation.status || "").toLowerCase() ===
+                                "checked-in" ||
+                              (reservation.status || "").toLowerCase() ===
+                                "checked-out" ||
+                              (reservation.status || "").toLowerCase() ===
+                                "cancelled"
+                            }
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-slate-300 hover:bg-slate-50"
+                            disabled={
+                              (reservation.status || "").toLowerCase() ===
+                                "checked-in" ||
+                              (reservation.status || "").toLowerCase() ===
+                                "checked-out" ||
+                              (reservation.status || "").toLowerCase() ===
+                                "cancelled"
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Bạn có chắc muốn hủy đặt phòng?
+                            </AlertDialogTitle>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() =>
+                                handleCancel(reservation.reservationId)
+                              }
+                              disabled={
+                                (reservation.status || "").toLowerCase() ===
+                                  "checked-in" ||
+                                (reservation.status || "").toLowerCase() ===
+                                  "checked-out" ||
+                                (reservation.status || "").toLowerCase() ===
+                                  "cancelled"
+                              }
                             >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          }
-                        />
-                      )}
-                      {(reservation.status || "").toLowerCase() ===
-                        "confirmed" && (
+                              Hủy đặt
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      {((reservation.status || "").toLowerCase() ===
+                        "booking" ||
+                        (reservation.status || "").toLowerCase() ===
+                          "confirmed") && (
                         <Button
                           variant="secondary"
                           size="sm"
@@ -668,42 +782,6 @@ export function ReservationManagement() {
                         >
                           Trả Phòng
                         </Button>
-                      )}
-                      {(reservation.status || "").toLowerCase() ===
-                        "confirmed" && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="border-slate-300 hover:bg-slate-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Bạn có chắc muốn hủy đặt phòng?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Hành động này sẽ đánh dấu đặt phòng là 'Đã hủy'
-                                và sẽ không hiển thị trong danh sách nhưng vẫn
-                                tồn tại trong cơ sở dữ liệu.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Huỷ</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() =>
-                                  handleCancel(reservation.reservationId)
-                                }
-                              >
-                                Hủy đặt
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
                       )}
                     </div>
                   </TableCell>

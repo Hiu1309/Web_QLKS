@@ -2,6 +2,7 @@ package com.hotel.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -10,6 +11,7 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "reservation_rooms")
 @Data
+@NoArgsConstructor
 @JsonIgnoreProperties({"hibernateLazyInitializer","handler"})
 public class ReservationRoom {
     @Id

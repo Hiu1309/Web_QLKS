@@ -40,6 +40,9 @@ public class StayService {
     @Autowired
     private RoomStatusService roomStatusService;
 
+    @Autowired
+    private InvoiceService invoiceService;
+
     public List<Stay> createStaysForReservation(Integer reservationId) {
         Reservation reservation = reservationRepository.findById(reservationId).orElse(null);
         if (reservation == null) throw new RuntimeException("Reservation not found");
@@ -97,6 +100,14 @@ public class StayService {
                 Room room = s.getRoom();
                 room.setStatus(returned);
                 roomRepository.save(room);
+            }
+
+            // Tạo hóa đơn từ Stay này
+            try {
+                invoiceService.createInvoiceFromStay(s.getStayId(), 1);
+            } catch (Exception e) {
+                // Log error but don't fail checkout if invoice creation fails
+                System.err.println("Failed to create invoice for stay " + s.getStayId() + ": " + e.getMessage());
             }
         }
         // update reservation status

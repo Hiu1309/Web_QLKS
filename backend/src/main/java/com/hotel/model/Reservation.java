@@ -2,6 +2,7 @@ package com.hotel.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.math.BigDecimal;
@@ -11,6 +12,7 @@ import java.util.List;
 @Entity
 @Table(name = "reservations")
 @Data
+@NoArgsConstructor
 @JsonIgnoreProperties({"hibernateLazyInitializer","handler"})
 public class Reservation {
     @Id
@@ -22,7 +24,8 @@ public class Reservation {
     @JoinColumn(name = "guest_id", nullable = false)
     private Guest guest;
 
-    private String status;
+    @Column(name = "status")
+    private String status = "booking";
 
     @Column(name = "arrival_date")
     private Timestamp arrivalDate;

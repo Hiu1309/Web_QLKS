@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th12 04, 2025 lúc 08:08 PM
+-- Thời gian đã tạo: Th12 06, 2025 lúc 08:21 AM
 -- Phiên bản máy phục vụ: 10.4.32-MariaDB
 -- Phiên bản PHP: 8.2.12
 
@@ -57,11 +57,32 @@ CREATE TABLE `invoice` (
   `invoice_id` int(11) NOT NULL,
   `stay_id` int(11) NOT NULL,
   `guest_id` int(11) NOT NULL,
-  `currency` varchar(10) NOT NULL DEFAULT 'VND',
-  `balance` decimal(18,2) NOT NULL DEFAULT 0.00,
+  `currency` varchar(255) DEFAULT NULL,
+  `balance` decimal(38,2) DEFAULT NULL,
   `created_by_user_id` int(11) NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `status` varchar(255) DEFAULT 'Chưa thanh toán',
+  `payment_method` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `invoice`
+--
+
+INSERT INTO `invoice` (`invoice_id`, `stay_id`, `guest_id`, `currency`, `balance`, `created_by_user_id`, `created_at`, `status`, `payment_method`) VALUES
+(1, 24, 1, 'VND', 4450000.00, 1, '2025-12-05 02:26:07', 'Chưa thanh toán', ''),
+(2, 23, 1, 'VND', 700000.00, 1, '2025-12-05 02:30:44', 'Chưa thanh toán', ''),
+(3, 25, 2, 'VND', 300000.00, 1, '2025-12-05 02:30:58', 'Chưa thanh toán', ''),
+(4, 26, 1, 'VND', 1350000.00, 1, '2025-12-05 02:33:12', 'Chưa thanh toán', ''),
+(5, 27, 1, 'VND', 1500000.00, 1, '2025-12-05 02:33:12', 'Chưa thanh toán', ''),
+(6, 28, 1, 'VND', 700000.00, 1, '2025-12-05 02:57:41', 'Chưa thanh toán', ''),
+(7, 29, 1, 'VND', 1350000.00, 1, '2025-12-05 03:06:23', 'Chưa thanh toán', ''),
+(8, 30, 1, 'VND', 300000.00, 1, '2025-12-05 03:06:23', 'Chưa thanh toán', ''),
+(9, 31, 2, 'VND', 300000.00, 1, '2025-12-05 03:30:31', 'Chưa thanh toán', ''),
+(10, 32, 1, 'VND', 700000.00, 1, '2025-12-05 03:56:14', 'Chưa thanh toán', ''),
+(11, 33, 2, 'VND', 1350000.00, 1, '2025-12-05 03:56:16', 'Chưa thanh toán', ''),
+(12, 34, 1, 'VND', 1580000.00, 1, '2025-12-05 04:05:19', 'Đã thanh toán', 'Chuyển khoản'),
+(13, 37, 3, 'VND', 0.00, 1, '2025-12-05 21:17:02', 'cancelled', 'Tiền mặt');
 
 -- --------------------------------------------------------
 
@@ -73,10 +94,18 @@ CREATE TABLE `invoice_items` (
   `invoice_item_id` int(11) NOT NULL,
   `invoice_id` int(11) NOT NULL,
   `item_id` int(11) NOT NULL,
-  `amount` decimal(18,2) NOT NULL,
+  `amount` decimal(38,2) DEFAULT NULL,
   `posted_date` datetime NOT NULL DEFAULT current_timestamp(),
   `posted_by_user_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `invoice_items`
+--
+
+INSERT INTO `invoice_items` (`invoice_item_id`, `invoice_id`, `item_id`, `amount`, `posted_date`, `posted_by_user_id`) VALUES
+(15, 12, 1, 150000.00, '2025-12-06 07:04:52', 1),
+(16, 12, 2, 80000.00, '2025-12-06 07:04:52', 1);
 
 -- --------------------------------------------------------
 
@@ -98,11 +127,11 @@ CREATE TABLE `items` (
 --
 
 INSERT INTO `items` (`item_id`, `item_type_id`, `item_name`, `price`, `status`, `image`) VALUES
-(1, 3, 'Dịch vụ phòng ăn', 150000, 'Còn hoạt động', 'uploads/services/room-service.jpg'),
-(2, 1, 'Dịch vụ giặt ủi', 80000, 'Còn hoạt động', 'uploads/services/laundry.jpg'),
-(3, 2, 'Dịch vụ spa & massage', 300000, 'Còn hoạt động', 'uploads/services/spa-massage.jpg'),
-(4, 1, 'Dịch vụ hồ bơi', 200000, 'Còn hoạt động', 'uploads/services/swimming-pool.jpg'),
-(5, 2, 'Dịch vụ gym & thể dục', 120000, 'Còn hoạt động', 'uploads/services/gym.jpg');
+(1, 3, 'Phòng ăn', 150000, 'Còn hoạt động', 'uploads/services/room-service.jpg'),
+(2, 1, 'Giặt ủi', 80000, 'Còn hoạt động', 'uploads/services/laundry.jpg'),
+(3, 2, 'Spa & massage', 300000, 'Còn hoạt động', 'uploads/services/spa-massage.jpg'),
+(4, 1, 'Hồ bơi', 200000, 'Còn hoạt động', 'uploads/services/swimming-pool.jpg'),
+(5, 2, 'Gym', 120000, 'Còn hoạt động', 'uploads/services/gym.jpg');
 
 -- --------------------------------------------------------
 
@@ -123,22 +152,6 @@ INSERT INTO `item_types` (`item_type_id`, `type_name`) VALUES
 (1, 'Tiện ích'),
 (2, 'Sức khỏe'),
 (3, 'Ăn uống');
-
--- --------------------------------------------------------
-
---
--- Cấu trúc bảng cho bảng `payments`
---
-
-CREATE TABLE `payments` (
-  `payment_id` int(11) NOT NULL,
-  `invoice_id` int(11) NOT NULL,
-  `amount` decimal(18,2) NOT NULL,
-  `payment_method` varchar(50) NOT NULL,
-  `status` varchar(50) NOT NULL DEFAULT 'Completed',
-  `payment_date` datetime NOT NULL DEFAULT current_timestamp(),
-  `created_by_user_id` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -181,9 +194,20 @@ INSERT INTO `reservations` (`reservation_id`, `guest_id`, `status`, `arrival_dat
 (26, 1, 'checked-out', '2025-12-04 00:00:00.000000', '2025-12-05 00:00:00.000000', 4, 1350000.00, 1, '2025-12-03 08:38:52'),
 (27, 1, 'checked-out', '2025-12-05 00:00:00.000000', '2025-12-07 00:00:00.000000', 6, 3300000.00, 1, '2025-12-03 12:49:26'),
 (28, 1, 'checked-out', '2025-12-04 00:00:00.000000', '2025-12-07 00:00:00.000000', 2, 2100000.00, 1, '2025-12-03 12:50:59'),
-(29, 1, 'checked-in', '2025-12-04 00:00:00.000000', '2025-12-05 00:00:00.000000', 1, 700000.00, 1, '2025-12-03 13:32:16'),
-(30, 2, 'confirmed', '2025-12-04 00:00:00.000000', '2025-12-06 00:00:00.000000', 2, 600000.00, 1, '2025-12-03 13:42:04'),
-(31, 1, 'confirmed', '2025-12-10 00:00:00.000000', '2025-12-30 00:00:00.000000', 6, 89000000.00, 1, '2025-12-04 14:59:44');
+(29, 1, 'checked-out', '2025-12-04 00:00:00.000000', '2025-12-05 00:00:00.000000', 1, 700000.00, 1, '2025-12-03 13:32:16'),
+(30, 2, 'checked-out', '2025-12-04 00:00:00.000000', '2025-12-06 00:00:00.000000', 2, 600000.00, 1, '2025-12-03 13:42:04'),
+(31, 1, 'checked-out', '2025-12-10 00:00:00.000000', '2025-12-30 00:00:00.000000', 6, 89000000.00, 1, '2025-12-04 14:59:44'),
+(32, 1, 'checked-out', '2025-12-06 00:00:00.000000', '2025-12-08 00:00:00.000000', 4, 5700000.00, 1, '2025-12-05 02:31:48'),
+(33, 1, 'checked-out', '2025-12-07 00:00:00.000000', '2025-12-09 00:00:00.000000', 2, 1400000.00, 1, '2025-12-05 02:57:24'),
+(34, 1, 'checked-out', '2025-12-07 00:00:00.000000', '2025-12-10 00:00:00.000000', 1, 4950000.00, 1, '2025-12-05 03:05:17'),
+(35, 2, 'checked-out', '2025-12-07 00:00:00.000000', '2025-12-09 00:00:00.000000', 2, 600000.00, 1, '2025-12-05 03:30:14'),
+(36, 2, 'checked-out', '2025-12-06 00:00:00.000000', '2025-12-07 00:00:00.000000', 1, 1350000.00, 1, '2025-12-05 03:33:33'),
+(37, 1, 'checked-out', '2025-12-08 00:00:00.000000', '2025-12-11 00:00:00.000000', 1, 2100000.00, 1, '2025-12-05 03:42:31'),
+(38, 1, 'cancelled', '2025-12-07 00:00:00.000000', '2025-12-09 00:00:00.000000', 1, 2700000.00, 1, '2025-12-05 03:57:02'),
+(39, 1, 'checked-out', '2025-12-06 00:00:00.000000', '2025-12-07 00:00:00.000000', 1, 1350000.00, 1, '2025-12-05 04:01:56'),
+(40, 1, 'checked-out', '2025-12-06 00:00:00.000000', '2025-12-08 00:00:00.000000', 1, 3000000.00, 1, '2025-12-05 04:09:28'),
+(41, 3, 'checked-out', '2025-12-06 00:00:00.000000', '2025-12-07 00:00:00.000000', 1, 700000.00, 1, '2025-12-05 04:24:38'),
+(42, 3, 'checked-out', '2025-12-07 00:00:00.000000', '2025-12-09 00:00:00.000000', 1, 8900000.00, 1, '2025-12-05 21:16:53');
 
 -- --------------------------------------------------------
 
@@ -227,7 +251,19 @@ INSERT INTO `reservation_rooms` (`id`, `reservation_id`, `room_id`, `room_type_i
 (67, 28, 3, 2, NULL, 700000.00),
 (68, 29, 3, 2, NULL, 700000.00),
 (69, 30, 1, 1, NULL, 300000.00),
-(70, 31, 29, 9, NULL, 4450000.00);
+(70, 31, 29, 9, NULL, 4450000.00),
+(71, 32, 2, 5, NULL, 1350000.00),
+(72, 32, 5, 3, NULL, 1500000.00),
+(73, 33, 21, 2, NULL, 700000.00),
+(74, 34, 2, 5, NULL, 1350000.00),
+(75, 34, 1, 1, NULL, 300000.00),
+(76, 35, 1, 1, NULL, 300000.00),
+(77, 36, 2, 5, NULL, 1350000.00),
+(78, 37, 3, 2, NULL, 700000.00),
+(80, 39, 4, 5, NULL, 1350000.00),
+(81, 40, 5, 3, NULL, 1500000.00),
+(82, 41, 21, 2, NULL, 700000.00),
+(83, 42, 29, 9, NULL, 4450000.00);
 
 -- --------------------------------------------------------
 
@@ -269,13 +305,13 @@ CREATE TABLE `rooms` (
 --
 
 INSERT INTO `rooms` (`room_id`, `room_number`, `room_type_id`, `floor`, `status_id`, `image`) VALUES
-(1, '101', 1, '1', 7, 'uploads/rooms/standard.jpg'),
-(2, '102', 5, '1', 1, 'uploads/rooms/deluxe.jpg'),
-(3, '201', 2, '2', 2, 'uploads/rooms/deluxe.jpg'),
-(4, '202', 5, '2', 5, 'uploads/rooms/deluxe.jpg'),
-(5, '301', 3, '3', 1, 'uploads/rooms/standard.jpg'),
-(21, '203', 2, '2', 1, 'uploads/rooms/deluxe.jpg'),
-(29, '304', 9, '3', 1, 'uploads/rooms/vip.jpg');
+(1, '101', 1, '1', 3, 'uploads/rooms/standard.jpg'),
+(2, '102', 5, '1', 3, 'uploads/rooms/standard.jpg'),
+(3, '201', 2, '2', 3, 'uploads/rooms/deluxe.jpg'),
+(4, '202', 5, '2', 3, 'uploads/rooms/deluxe.jpg'),
+(5, '301', 3, '3', 3, 'uploads/rooms/vip.jpg'),
+(21, '203', 2, '2', 3, 'uploads/rooms/deluxe.jpg'),
+(29, '304', 9, '3', 3, 'uploads/rooms/vip.jpg');
 
 -- --------------------------------------------------------
 
@@ -375,7 +411,21 @@ INSERT INTO `stays` (`stay_id`, `reservation_id`, `guest_id`, `room_id`, `checki
 (20, 27, 1, 1, '2025-12-03 12:49:42', '2025-12-03 12:49:48', 300000.00, 'checked-out', 1, '2025-12-03 12:49:42'),
 (21, 27, 1, 2, '2025-12-03 12:49:42', '2025-12-03 12:49:48', 1350000.00, 'checked-out', 1, '2025-12-03 12:49:42'),
 (22, 28, 1, 3, '2025-12-03 12:51:49', '2025-12-03 12:52:23', 700000.00, 'checked-out', 1, '2025-12-03 12:51:49'),
-(23, 29, 1, 3, '2025-12-03 13:36:52', '2025-12-03 13:36:52', 700000.00, 'checked-in', 1, '2025-12-03 13:36:52');
+(23, 29, 1, 3, '2025-12-03 13:36:52', '2025-12-05 02:30:44', 700000.00, 'completed', 1, '2025-12-03 13:36:52'),
+(24, 31, 1, 29, '2025-12-05 02:26:05', '2025-12-05 02:26:07', 4450000.00, 'completed', 1, '2025-12-05 02:26:05'),
+(25, 30, 2, 1, '2025-12-05 02:30:56', '2025-12-05 02:30:58', 300000.00, 'completed', 1, '2025-12-05 02:30:56'),
+(26, 32, 1, 2, '2025-12-05 02:32:41', '2025-12-05 02:33:12', 1350000.00, 'completed', 1, '2025-12-05 02:32:41'),
+(27, 32, 1, 5, '2025-12-05 02:32:41', '2025-12-05 02:33:12', 1500000.00, 'completed', 1, '2025-12-05 02:32:41'),
+(28, 33, 1, 21, '2025-12-05 02:57:35', '2025-12-05 02:57:41', 700000.00, 'completed', 1, '2025-12-05 02:57:35'),
+(29, 34, 1, 2, '2025-12-05 03:05:57', '2025-12-05 03:06:23', 1350000.00, 'completed', 1, '2025-12-05 03:05:57'),
+(30, 34, 1, 1, '2025-12-05 03:05:57', '2025-12-05 03:06:23', 300000.00, 'completed', 1, '2025-12-05 03:05:57'),
+(31, 35, 2, 1, '2025-12-05 03:30:26', '2025-12-05 03:30:31', 300000.00, 'completed', 1, '2025-12-05 03:30:26'),
+(32, 37, 1, 3, '2025-12-05 03:56:11', '2025-12-05 03:56:14', 700000.00, 'completed', 1, '2025-12-05 03:56:11'),
+(33, 36, 2, 2, '2025-12-05 03:56:12', '2025-12-05 03:56:16', 1350000.00, 'completed', 1, '2025-12-05 03:56:12'),
+(34, 39, 1, 4, '2025-12-05 04:05:17', '2025-12-05 04:05:19', 1350000.00, 'completed', 1, '2025-12-05 04:05:17'),
+(35, 41, 3, 21, '2025-12-05 04:24:41', '2025-12-05 20:57:50', 700000.00, 'completed', 1, '2025-12-05 04:24:41'),
+(36, 40, 1, 5, '2025-12-05 20:58:00', '2025-12-05 20:58:01', 1500000.00, 'completed', 1, '2025-12-05 20:58:00'),
+(37, 42, 3, 29, '2025-12-05 21:17:00', '2025-12-05 21:17:02', 4450000.00, 'completed', 1, '2025-12-05 21:17:00');
 
 -- --------------------------------------------------------
 
@@ -450,15 +500,6 @@ ALTER TABLE `items`
 ALTER TABLE `item_types`
   ADD PRIMARY KEY (`item_type_id`),
   ADD UNIQUE KEY `item_type_id` (`item_type_id`);
-
---
--- Chỉ mục cho bảng `payments`
---
-ALTER TABLE `payments`
-  ADD PRIMARY KEY (`payment_id`),
-  ADD UNIQUE KEY `payment_id` (`payment_id`),
-  ADD KEY `created_by_user_id` (`created_by_user_id`),
-  ADD KEY `invoice_id` (`invoice_id`);
 
 --
 -- Chỉ mục cho bảng `reservations`
@@ -546,13 +587,13 @@ ALTER TABLE `guests`
 -- AUTO_INCREMENT cho bảng `invoice`
 --
 ALTER TABLE `invoice`
-  MODIFY `invoice_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `invoice_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT cho bảng `invoice_items`
 --
 ALTER TABLE `invoice_items`
-  MODIFY `invoice_item_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `invoice_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT cho bảng `items`
@@ -567,22 +608,16 @@ ALTER TABLE `item_types`
   MODIFY `item_type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT cho bảng `payments`
---
-ALTER TABLE `payments`
-  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- AUTO_INCREMENT cho bảng `reservations`
 --
 ALTER TABLE `reservations`
-  MODIFY `reservation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
+  MODIFY `reservation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT cho bảng `reservation_rooms`
 --
 ALTER TABLE `reservation_rooms`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=71;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=84;
 
 --
 -- AUTO_INCREMENT cho bảng `roles`
@@ -612,7 +647,7 @@ ALTER TABLE `room_types`
 -- AUTO_INCREMENT cho bảng `stays`
 --
 ALTER TABLE `stays`
-  MODIFY `stay_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `stay_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT cho bảng `users`
@@ -645,13 +680,6 @@ ALTER TABLE `invoice_items`
 --
 ALTER TABLE `items`
   ADD CONSTRAINT `fk_items_item_type_id` FOREIGN KEY (`item_type_id`) REFERENCES `item_types` (`item_type_id`);
-
---
--- Các ràng buộc cho bảng `payments`
---
-ALTER TABLE `payments`
-  ADD CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  ADD CONSTRAINT `payments_ibfk_2` FOREIGN KEY (`invoice_id`) REFERENCES `invoice` (`invoice_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 --
 -- Các ràng buộc cho bảng `reservations`
