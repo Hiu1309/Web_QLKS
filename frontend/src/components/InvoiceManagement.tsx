@@ -189,7 +189,7 @@ const InvoiceStatusBadge = ({
 
   const label =
     status === "cancelled"
-      ? "Đã Hủy Đơn"
+      ? "Đã Hủy Hóa Đơn"
       : isPaid
       ? "Đã Thanh Toán"
       : "Chờ Thanh Toán";
@@ -518,7 +518,7 @@ export function InvoiceManagement() {
             <Label className="text-slate-600">Trạng Thái</Label>
             <p className="font-medium text-slate-800">
               {invoice.status === "cancelled"
-                ? "Đã Hủy Đơn"
+                ? "Đã Hủy Hóa Đơn"
                 : invoice.isPaid
                 ? "Đã Thanh Toán"
                 : "Chờ Thanh Toán"}
@@ -702,7 +702,7 @@ export function InvoiceManagement() {
             <SelectItem value="all">Tất Cả Trạng Thái</SelectItem>
             <SelectItem value="paid">Đã Thanh Toán</SelectItem>
             <SelectItem value="unpaid">Chờ Thanh Toán</SelectItem>
-            <SelectItem value="cancelled">Đã Hủy Đơn</SelectItem>
+            <SelectItem value="cancelled">Đã Hủy Hóa Đơn</SelectItem>
           </SelectContent>
         </Select>
 
@@ -922,7 +922,7 @@ export function InvoiceManagement() {
                           </AlertDialogContent>
                         </AlertDialog>
 
-                        {!invoice.isPaid && (
+                        {!invoice.isPaid && invoice.status !== "cancelled" && (
                           <PaymentDialog
                             invoice={invoice}
                             availableServices={availableServices}

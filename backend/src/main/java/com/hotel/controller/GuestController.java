@@ -31,10 +31,49 @@ public class GuestController {
     }
 
     @PostMapping
-    public Guest create(@RequestBody Guest g) { return guestService.addGuest(g); }
+    public ResponseEntity<?> create(@RequestBody Guest g) {
+        if (g.getDob() == null) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Ngày sinh là bắt buộc"));
+        }
+        if (!g.isAdult()) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Khách hàng phải từ 18 tuổi trở lên"));
+        }
+        if (guestService.isPhoneDuplicate(g.getPhone(), null)) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Số điện thoại này đã tồn tại"));
+        }
+        if (guestService.isIdNumberDuplicate(g.getIdNumber(), null)) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Mã giấy tờ này đã tồn tại"));
+        }
+        return ResponseEntity.ok(guestService.addGuest(g));
+    }
+
+    public static class ErrorResponse {
+        public String message;
+        public ErrorResponse(String message) {
+            this.message = message;
+        }
+    }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Guest> update(@PathVariable Integer id, @RequestBody Guest g) { try { return ResponseEntity.ok(guestService.updateGuest(id, g)); } catch (RuntimeException e) { return ResponseEntity.notFound().build(); } }
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Guest g) {
+        if (g.getDob() == null) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Ngày sinh là bắt buộc"));
+        }
+        if (!g.isAdult()) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Khách hàng phải từ 18 tuổi trở lên"));
+        }
+        if (guestService.isPhoneDuplicate(g.getPhone(), id)) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Số điện thoại này đã tồn tại"));
+        }
+        if (guestService.isIdNumberDuplicate(g.getIdNumber(), id)) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Mã giấy tờ này đã tồn tại"));
+        }
+        try {
+            return ResponseEntity.ok(guestService.updateGuest(id, g));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) { guestService.deleteGuest(id); return ResponseEntity.noContent().build(); }

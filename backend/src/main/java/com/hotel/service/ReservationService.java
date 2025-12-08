@@ -48,7 +48,12 @@ public class ReservationService {
 
     public List<Reservation> getAllReservations(String guestName, String status) {
         String guestNameParam = (guestName == null || guestName.isBlank()) ? null : guestName.toLowerCase();
-        return reservationRepository.findFiltered(guestNameParam, (status == null || status.isBlank()) ? null : status);
+        String statusParam = (status == null || status.isBlank()) ? null : status;
+        return reservationRepository.findFiltered(guestNameParam, statusParam);
+    }
+
+    public List<Reservation> getReservationsByGuestId(Integer guestId) {
+        return reservationRepository.findByGuestId(guestId);
     }
 
     public Optional<Reservation> getReservationById(Integer id) {

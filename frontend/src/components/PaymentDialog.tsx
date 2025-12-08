@@ -24,6 +24,7 @@ import {
   QrCode,
 } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { handlePrintInvoice } from "./InvoicePrinter";
 
 interface Service {
   id: string;
@@ -192,10 +193,17 @@ export function PaymentDialog({
   };
 
   const handlePrintBill = () => {
-    toast.success("Đang in hóa đơn...", {
-      description: "Hóa đơn sẽ được in trong giây lát.",
+    // In hóa đơn chi tiết thay vì window.print()
+    handlePrintInvoice({
+      invoice,
+      services: selectedServices,
+      roomTotal: invoice.roomPrice * invoice.nights,
+      servicesTotal: selectedServices.reduce(
+        (sum, service) => sum + service.price,
+        0
+      ),
+      grandTotal,
     });
-    window.print();
   };
 
   return (
@@ -484,7 +492,7 @@ export function PaymentDialog({
                       <div className="mt-4 pt-4 border-t">
                         <div className="flex flex-col items-center p-6 bg-white rounded-lg border-2 border-dashed border-gray-300">
                           <ImageWithFallback
-                            src="http://localhost:8080/uploads/payment_qr/qr_code.jpg"
+                            src="http://localhost:8080/uploads/qr_code.jpg"
                             alt="QR Code Payment"
                             className="w-48 h-48 object-cover rounded-lg mb-3"
                           />

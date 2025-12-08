@@ -118,4 +118,8 @@ public class StayService {
         }
         return stays;
     }
+
+    public List<Stay> getStaysByGuestId(Integer guestId) {
+        return stayRepository.findByGuestGuestId(guestId);
+    }
 }

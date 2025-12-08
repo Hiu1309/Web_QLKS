@@ -24,6 +24,11 @@ public class ReservationController {
         return reservationService.getAllReservations(guestName, status);
     }
 
+    @GetMapping("/guest/{guestId}")
+    public List<Reservation> getByGuestId(@PathVariable Integer guestId) {
+        return reservationService.getReservationsByGuestId(guestId);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Reservation> getById(@PathVariable Integer id) {
         return reservationService.getReservationById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());

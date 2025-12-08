@@ -26,40 +26,81 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-interface AddGuestDialogProps {
+interface Guest {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  idType: string;
+  idNumber: string;
+  dob?: string;
+  createdAt?: string;
+}
+
+interface AddEditGuestDialogProps {
+  mode?: "add" | "edit";
+  guest?: Guest;
   trigger?: React.ReactNode;
   onCreated?: (guest: any) => void;
+  onUpdated?: (guest: Guest) => void;
   initial?: Partial<any>;
 }
 
-export function AddGuestDialog({
+export function AddEditGuestDialog({
+  mode = "add",
+  guest,
   trigger,
   onCreated,
+  onUpdated,
   initial,
-}: AddGuestDialogProps) {
+}: AddEditGuestDialogProps) {
   const [open, setOpen] = useState(false);
-  const [dob, setDob] = useState<string>("");
+  const [day, setDay] = useState<string>("");
+  const [month, setMonth] = useState<string>("");
+  const [year, setYear] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    idType: "CCCD",
-    idNumber: "",
+    fullName: guest?.name || "",
+    email: guest?.email || "",
+    phone: guest?.phone || "",
+    idType: guest?.idType || "CCCD",
+    idNumber: guest?.idNumber || "",
   });
 
-  // populate from initial
+  // Reset form when dialog opens/closes or guest changes
   useEffect(() => {
-    if (!initial) return;
-    setFormData((prev) => ({
-      ...prev,
-      fullName: initial.fullName || prev.fullName,
-      email: initial.email || prev.email,
-      phone: initial.phone || prev.phone,
-      idType: initial.idType || prev.idType,
-      idNumber: initial.idNumber || prev.idNumber,
-    }));
-  }, [initial]);
+    if (mode === "edit" && guest) {
+      setFormData({
+        fullName: guest.name,
+        email: guest.email,
+        phone: guest.phone,
+        idType: guest.idType,
+        idNumber: guest.idNumber,
+      });
+      // Parse YYYY-MM-DD to day, month, year
+      if (guest.dob) {
+        const [y, m, d] = guest.dob.split("-");
+        setYear(y);
+        setMonth(m);
+        setDay(d);
+      } else {
+        setDay("");
+        setMonth("");
+        setYear("");
+      }
+    } else if (mode === "add") {
+      setFormData({
+        fullName: initial?.fullName || "",
+        email: initial?.email || "",
+        phone: initial?.phone || "",
+        idType: initial?.idType || "CCCD",
+        idNumber: initial?.idNumber || "",
+      });
+      setDay("");
+      setMonth("");
+      setYear("");
+    }
+  }, [guest, open, mode, initial]);
 
   const validateIdNumber = (idType: string, idNumber: string): string => {
     if (!idNumber) return "Mã giấy tờ bắt buộc";
@@ -104,12 +145,36 @@ export function AddGuestDialog({
     return "";
   };
 
-  const validateDob = (dobString: string): string => {
-    if (!dobString) {
+  const validateDob = (d: string, m: string, y: string): string => {
+    if (!d || !m || !y) {
       return "Ngày sinh là bắt buộc";
     }
 
-    const birthDate = new Date(dobString);
+    const dayNum = Number(d);
+    const monthNum = Number(m);
+    const yearNum = Number(y);
+
+    if (
+      Number.isNaN(dayNum) ||
+      Number.isNaN(monthNum) ||
+      Number.isNaN(yearNum)
+    ) {
+      return "Ngày sinh phải là số";
+    }
+
+    const currentYear = new Date().getFullYear();
+    if (yearNum < 1900 || yearNum > currentYear) {
+      return "Năm sinh không hợp lệ";
+    }
+    if (monthNum < 1 || monthNum > 12) {
+      return "Tháng sinh không hợp lệ";
+    }
+    const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+    if (dayNum < 1 || dayNum > daysInMonth) {
+      return "Ngày sinh không hợp lệ";
+    }
+
+    const birthDate = new Date(yearNum, monthNum - 1, dayNum);
     const today = new Date();
 
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -145,7 +210,7 @@ export function AddGuestDialog({
       newErrors.email = emailError;
     }
 
-    const dobError = validateDob(dob);
+    const dobError = validateDob(day, month, year);
     if (dobError) {
       newErrors.dob = dobError;
     }
@@ -181,57 +246,118 @@ export function AddGuestDialog({
       fullName: formData.fullName.trim(),
       email: formData.email.trim() || null,
       phone: formData.phone.trim(),
-      dob: dob,
+      dob: `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
       idType: formData.idType,
       idNumber: formData.idNumber.trim(),
     };
 
     try {
-      const res = await fetch("http://localhost:8080/api/guests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Add guest failed");
+      if (mode === "add") {
+        const res = await fetch("http://localhost:8080/api/guests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.message || "Add guest failed");
+        }
+        const created = await res.json();
+        onCreated && onCreated(created);
+        setOpen(false);
+        toast.success("Thêm khách hàng thành công!");
+
+        // Reset form
+        setFormData({
+          fullName: "",
+          email: "",
+          phone: "",
+          idType: "CCCD",
+          idNumber: "",
+        });
+        setDay("");
+        setMonth("");
+        setYear("");
+        setErrors({});
+      } else if (mode === "edit" && guest) {
+        const res = await fetch(
+          `http://localhost:8080/api/guests/${guest.id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.message || "Update guest failed");
+        }
+        const updated = await res.json();
+        onUpdated &&
+          onUpdated({
+            id: updated.guestId?.toString() ?? guest.id,
+            name: updated.fullName || guest.name,
+            email: updated.email || "",
+            phone: updated.phone || "",
+            dob: updated.dob || "",
+            createdAt: updated.createdAt || "",
+            idType: updated.idType || "",
+            idNumber: updated.idNumber || "",
+          });
+        setOpen(false);
+        toast.success("Cập nhật khách hàng thành công!");
       }
-      const created = await res.json();
-      onCreated && onCreated(created);
-      setOpen(false);
-      toast.success("Thêm khách hàng thành công!");
     } catch (err) {
       console.error(err);
-      toast.error(
-        err instanceof Error ? err.message : "Thêm khách hàng thất bại"
-      );
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : mode === "add"
+          ? "Thêm khách hàng thất bại"
+          : "Cập nhật khách hàng thất bại";
+      toast.error(errorMessage);
     }
+  };
 
-    setFormData({
-      fullName: "",
-      email: "",
-      phone: "",
-      idType: "CCCD",
-      idNumber: "",
-    });
-    setDob("");
-    setErrors({});
+  // Format date from YYYY-MM-DD to DD/MM/YYYY for display
+  const formatDateForDisplay = (dateStr: string): string => {
+    if (!dateStr) return "";
+    const [year, month, day] = dateStr.split("-");
+    return `${day}/${month}/${year}`;
+  };
+
+  // Parse DD/MM/YYYY to YYYY-MM-DD for storage
+  const parseDateForStorage = (dateStr: string): string => {
+    if (!dateStr) return "";
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
+    return dateStr;
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {trigger || (
-          <Button className="bg-gray-700 hover:bg-gray-800 text-white">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Thêm Khách Hàng
-          </Button>
-        )}
+        {trigger ||
+          (mode === "add" ? (
+            <Button className="bg-gray-700 hover:bg-gray-800 text-white">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Thêm Khách Hàng
+            </Button>
+          ) : (
+            <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700">
+              Chỉnh Sửa Hồ Sơ
+            </Button>
+          ))}
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader>
           <DialogTitle className="text-2xl text-gray-800">
-            Thêm Khách Hàng Mới
+            {mode === "add"
+              ? "Thêm Khách Hàng Mới"
+              : "Chỉnh Sửa Hồ Sơ Khách Hàng"}
           </DialogTitle>
         </DialogHeader>
 
@@ -316,28 +442,53 @@ export function AddGuestDialog({
             )}
           </div>
 
-          {/* Date of Birth */}
+          {/* Date of Birth - Ngày/Tháng/Năm */}
           <div className="space-y-2">
-            <Label
-              htmlFor="dob"
-              className="text-gray-800 flex items-center gap-2"
-            >
+            <Label className="text-gray-800 flex items-center gap-2">
               <CalendarIcon className="h-4 w-4" />
               Ngày Sinh *
             </Label>
-            <div className="relative">
-              <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-              <input
-                id="dob"
-                type="date"
-                value={dob}
-                onChange={(e) => setDob(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
-                className={`pl-10 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.dob ? "border-red-500" : "border-gray-300"
+            <div className="grid grid-cols-3 gap-3">
+              <Input
+                type="number"
+                min="1"
+                max="31"
+                value={day}
+                onChange={(e) => setDay(e.target.value)}
+                placeholder="Ngày"
+                className={`border-gray-300 focus:border-gray-500 ${
+                  errors.dob ? "border-red-500" : ""
+                }`}
+              />
+              <Input
+                type="number"
+                min="1"
+                max="12"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                placeholder="Tháng"
+                className={`border-gray-300 focus:border-gray-500 ${
+                  errors.dob ? "border-red-500" : ""
+                }`}
+              />
+              <Input
+                type="number"
+                min="1900"
+                max={new Date().getFullYear()}
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                placeholder="Năm"
+                className={`border-gray-300 focus:border-gray-500 ${
+                  errors.dob ? "border-red-500" : ""
                 }`}
               />
             </div>
+            {day && month && year && (
+              <p className="text-xs text-gray-500">
+                Ngày đã chọn: {day.padStart(2, "0")}/{month.padStart(2, "0")}/
+                {year}
+              </p>
+            )}
             {errors.dob && (
               <div className="flex items-center gap-2 text-red-600 text-sm">
                 <AlertCircle className="h-4 w-4" />
@@ -421,9 +572,13 @@ export function AddGuestDialog({
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-gray-700 hover:bg-gray-800 text-white"
+              className={`flex-1 text-white ${
+                mode === "add"
+                  ? "bg-gray-700 hover:bg-gray-800"
+                  : "bg-emerald-600 hover:bg-emerald-700"
+              }`}
             >
-              Thêm Khách Hàng
+              {mode === "add" ? "Thêm Khách Hàng" : "Cập Nhật"}
             </Button>
           </div>
         </form>

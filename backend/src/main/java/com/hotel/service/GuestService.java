@@ -15,7 +15,11 @@ public class GuestService {
 
     public List<Guest> getAllGuests() { return guestRepository.findAll(); }
     public Optional<Guest> getGuestById(Integer id) { return guestRepository.findById(id); }
-    public Guest addGuest(Guest guest) { return guestRepository.save(guest); }
+    
+    public Guest addGuest(Guest guest) { 
+        return guestRepository.save(guest); 
+    }
+    
     public Guest updateGuest(Integer id, Guest updated) {
         Guest existing = guestRepository.findById(id).orElseThrow(() -> new RuntimeException("Guest not found"));
         existing.setFullName(updated.getFullName());
@@ -26,11 +30,24 @@ public class GuestService {
         existing.setIdNumber(updated.getIdNumber());
         return guestRepository.save(existing);
     }
+    
     public void deleteGuest(Integer id) { guestRepository.deleteById(id); }
 
     public List<Guest> searchGuests(String q, String idType) {
         String query = (q == null || q.isBlank()) ? null : q.toLowerCase();
         String type = (idType == null || idType.isBlank()) ? null : idType;
         return guestRepository.searchByQueryAndType(query, type);
+    }
+    
+    public boolean isPhoneDuplicate(String phone, Integer excludeGuestId) {
+        Optional<Guest> existing = guestRepository.findByPhone(phone);
+        if (existing.isEmpty()) return false;
+        return !existing.get().getGuestId().equals(excludeGuestId);
+    }
+    
+    public boolean isIdNumberDuplicate(String idNumber, Integer excludeGuestId) {
+        Optional<Guest> existing = guestRepository.findByIdNumber(idNumber);
+        if (existing.isEmpty()) return false;
+        return !existing.get().getGuestId().equals(excludeGuestId);
     }
 }
