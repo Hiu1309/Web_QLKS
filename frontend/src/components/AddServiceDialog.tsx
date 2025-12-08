@@ -1,68 +1,91 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Textarea } from './ui/textarea';
-import { Plus, Sparkles, DollarSign, Users, Clock, Image as ImageIcon } from 'lucide-react';
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Plus, Sparkles, DollarSign, Image as ImageIcon } from "lucide-react";
+import { toast } from "sonner";
 
 interface AddServiceDialogProps {
   trigger?: React.ReactNode;
+  onCreated?: (service: any) => void;
 }
 
-export function AddServiceDialog({ trigger }: AddServiceDialogProps) {
+export function AddServiceDialog({
+  trigger,
+  onCreated,
+}: AddServiceDialogProps) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
-    serviceName: '',
-    category: 'dining',
-    description: '',
-    price: '',
-    duration: '',
-    capacity: '',
-    availability: 'available',
-    imageUrl: '',
-    features: [] as string[],
-    featureInput: ''
+    itemName: "",
+    price: "",
+    status: "Còn hoạt động",
+    image: "uploads/services/",
+    itemTypeId: "1",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [itemTypes, setItemTypes] = useState([
+    { itemTypeId: 1, typeName: "Tiện ích" },
+    { itemTypeId: 2, typeName: "Sức khỏe" },
+    { itemTypeId: 3, typeName: "Ăn uống" },
+  ]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Service added:', {
-      ...formData,
-      id: `SVC${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`
-    });
-    setOpen(false);
-    // Reset form
-    setFormData({
-      serviceName: '',
-      category: 'dining',
-      description: '',
-      price: '',
-      duration: '',
-      capacity: '',
-      availability: 'available',
-      imageUrl: '',
-      features: [],
-      featureInput: ''
-    });
-  };
 
-  const addFeature = () => {
-    if (formData.featureInput.trim()) {
-      setFormData({
-        ...formData,
-        features: [...formData.features, formData.featureInput.trim()],
-        featureInput: ''
-      });
+    if (!formData.itemName || !formData.price) {
+      toast.error("Vui lòng nhập tên dịch vụ và giá");
+      return;
     }
-  };
 
-  const removeFeature = (index: number) => {
-    setFormData({
-      ...formData,
-      features: formData.features.filter((_, i) => i !== index)
-    });
+    try {
+      const payload = {
+        itemName: formData.itemName,
+        price: parseFloat(formData.price),
+        status: formData.status,
+        image: formData.image || null,
+        itemType: {
+          itemTypeId: parseInt(formData.itemTypeId),
+        },
+      };
+
+      const res = await fetch("http://localhost:8080/api/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Add service failed");
+
+      const data = await res.json();
+      toast.success("Thêm dịch vụ thành công!");
+      onCreated && onCreated(data);
+      setOpen(false);
+      setFormData({
+        itemName: "",
+        price: "",
+        status: "Còn hoạt động",
+        image: "uploads/services/",
+        itemTypeId: "1",
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Thêm dịch vụ thất bại!");
+    }
   };
 
   return (
@@ -75,16 +98,18 @@ export function AddServiceDialog({ trigger }: AddServiceDialogProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-gray-800">Thêm Dịch Vụ Mới</DialogTitle>
+          <DialogTitle className="text-2xl text-gray-800">
+            Thêm Dịch Vụ Mới
+          </DialogTitle>
           <DialogDescription className="text-gray-600">
             Tạo dịch vụ mới để cung cấp cho khách hàng
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-          {/* Basic Information */}
+          {/* Thông Tin Cơ Bản */}
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-800 flex items-center gap-2">
               <Sparkles className="h-5 w-5" />
@@ -92,211 +117,117 @@ export function AddServiceDialog({ trigger }: AddServiceDialogProps) {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="serviceName">Tên Dịch Vụ *</Label>
+                <Label htmlFor="itemName">Tên Dịch Vụ *</Label>
                 <Input
-                  id="serviceName"
-                  value={formData.serviceName}
-                  onChange={(e) => setFormData({ ...formData, serviceName: e.target.value })}
+                  id="itemName"
+                  value={formData.itemName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, itemName: e.target.value })
+                  }
                   required
                   className="border-gray-300 focus:border-gray-500"
-                  placeholder="Ví dụ: Massage Thư Giãn"
+                  placeholder=""
                 />
               </div>
               <div>
-                <Label htmlFor="category">Danh Mục *</Label>
-                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                <Label htmlFor="itemTypeId">Loại Dịch Vụ *</Label>
+                <Select
+                  value={formData.itemTypeId}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, itemTypeId: value })
+                  }
+                >
                   <SelectTrigger className="border-gray-300">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="dining">Ăn Uống</SelectItem>
-                    <SelectItem value="wellness">Sức Khỏe</SelectItem>
-                    <SelectItem value="transport">Di Chuyển</SelectItem>
-                    <SelectItem value="amenities">Tiện Nghi</SelectItem>
+                    {itemTypes.map((type) => (
+                      <SelectItem
+                        key={type.itemTypeId}
+                        value={type.itemTypeId.toString()}
+                      >
+                        {type.typeName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="md:col-span-2">
-                <Label htmlFor="description">Mô Tả *</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
-                  className="border-gray-300 focus:border-gray-500 h-24"
-                  placeholder="Mô tả chi tiết về dịch vụ..."
-                />
               </div>
             </div>
           </div>
 
-          {/* Pricing & Availability */}
+          {/* Giá & Trạng Thái */}
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-800 flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
-              Giá & Tình Trạng
+              Giá & Trạng Thái
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="price">Giá (₹) *</Label>
+                <Label htmlFor="price">Giá (VNĐ) *</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
                   <Input
                     id="price"
                     type="number"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price: e.target.value })
+                    }
                     required
-                    className="pl-8 border-gray-300 focus:border-gray-500"
+                    className="pr-8 border-gray-300 focus:border-gray-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0"
                     min="0"
                   />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                    ₫
+                  </span>
                 </div>
               </div>
               <div>
-                <Label htmlFor="availability">Tình Trạng *</Label>
-                <Select value={formData.availability} onValueChange={(value) => setFormData({ ...formData, availability: value })}>
+                <Label htmlFor="status">Trạng Thái *</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, status: value })
+                  }
+                >
                   <SelectTrigger className="border-gray-300">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="available">Còn Chỗ</SelectItem>
-                    <SelectItem value="limited">Sắp Hết</SelectItem>
-                    <SelectItem value="booked">Hết Chỗ</SelectItem>
+                    <SelectItem value="Còn hoạt động">Còn Hoạt Động</SelectItem>
+                    <SelectItem value="Ngưng hoạt động">
+                      Ngưng Hoạt Động
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </div>
 
-          {/* Service Details */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Chi Tiết Dịch Vụ
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="duration">Thời Gian</Label>
-                <Input
-                  id="duration"
-                  value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                  className="border-gray-300 focus:border-gray-500"
-                  placeholder="Ví dụ: 60 phút hoặc 9:00 - 17:00"
-                />
-              </div>
-              <div>
-                <Label htmlFor="capacity">Sức Chứa</Label>
-                <div className="relative">
-                  <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="capacity"
-                    type="number"
-                    value={formData.capacity}
-                    onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                    className="pl-10 border-gray-300 focus:border-gray-500"
-                    placeholder="Số người tối đa"
-                    min="1"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Image URL */}
+          {/* Hình Ảnh */}
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-800 flex items-center gap-2">
               <ImageIcon className="h-5 w-5" />
               Hình Ảnh
             </h3>
             <div>
-              <Label htmlFor="imageUrl">URL Hình Ảnh</Label>
+              <Label htmlFor="image">Đường Dẫn Hình Ảnh</Label>
               <Input
-                id="imageUrl"
-                type="url"
-                value={formData.imageUrl}
-                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                id="image"
+                value={formData.image}
+                onChange={(e) =>
+                  setFormData({ ...formData, image: e.target.value })
+                }
                 className="border-gray-300 focus:border-gray-500"
-                placeholder="https://example.com/image.jpg"
+                placeholder="uploads/services/image.jpg"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Nhập URL hình ảnh dịch vụ (tùy chọn)
+                Ví dụ: uploads/services/massage.jpg
               </p>
             </div>
           </div>
 
-          {/* Features */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-800">Tính Năng & Tiện Ích</h3>
-            <div className="flex gap-2">
-              <Input
-                value={formData.featureInput}
-                onChange={(e) => setFormData({ ...formData, featureInput: e.target.value })}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
-                className="border-gray-300 focus:border-gray-500"
-                placeholder="Thêm tính năng (Enter để thêm)"
-              />
-              <Button
-                type="button"
-                onClick={addFeature}
-                variant="outline"
-                className="border-gray-300 hover:bg-gray-100"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            {formData.features.length > 0 && (
-              <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                {formData.features.map((feature, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border border-gray-300 text-sm"
-                  >
-                    <span className="text-gray-700">{feature}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeFeature(index)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Summary */}
-          {formData.serviceName && formData.price && (
-            <div className="bg-gray-100 p-4 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">Tóm Tắt Dịch Vụ</h4>
-              <div className="space-y-1 text-sm text-gray-700">
-                <div className="flex justify-between">
-                  <span>Tên dịch vụ:</span>
-                  <span className="font-medium">{formData.serviceName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Giá:</span>
-                  <span className="font-medium">₹{parseInt(formData.price || '0').toLocaleString()}</span>
-                </div>
-                {formData.capacity && (
-                  <div className="flex justify-between">
-                    <span>Sức chứa:</span>
-                    <span className="font-medium">{formData.capacity} người</span>
-                  </div>
-                )}
-                {formData.features.length > 0 && (
-                  <div className="flex justify-between">
-                    <span>Tính năng:</span>
-                    <span className="font-medium">{formData.features.length} tính năng</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Action Buttons */}
+          {/* Nút Hành Động */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <Button
               type="button"

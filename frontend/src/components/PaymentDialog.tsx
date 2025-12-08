@@ -24,6 +24,7 @@ import {
   QrCode,
 } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { handlePrintInvoice } from "./InvoicePrinter";
 
 interface Service {
   id: string;
@@ -42,7 +43,33 @@ interface Invoice {
   nights: number;
   checkIn: string;
   checkOut: string;
+  idType?: string;
+  idNumber?: string;
 }
+
+const API_BASE =
+  ((import.meta as any).env?.VITE_API_BASE as string) ||
+  (import.meta as any).env?.VITE_API ||
+  "http://localhost:8080";
+
+const formatIdDisplay = (idType?: string, idNumber?: string) => {
+  const normalized = (idType || "").toLowerCase();
+  let label = "Giấy tờ";
+  if (
+    normalized.includes("cccd") ||
+    normalized.includes("cmnd") ||
+    normalized.includes("national")
+  ) {
+    label = "CCCD";
+  } else if (normalized.includes("passport")) {
+    label = "Hộ chiếu";
+  } else if (idType) {
+    label = idType;
+  }
+
+  if (!idNumber) return `${label}: -`;
+  return `${label}: ${idNumber}`;
+};
 
 interface PaymentDialogProps {
   invoice: Invoice;
@@ -85,7 +112,7 @@ export function PaymentDialog({
     }
   };
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     if (
       paymentMethod === "cash" &&
       (!cashReceived || parseFloat(cashReceived) < grandTotal)
@@ -96,20 +123,87 @@ export function PaymentDialog({
       return;
     }
 
-    onPaymentComplete(invoice.id, grandTotal, paymentMethod, selectedServices);
-    setOpen(false);
-    toast.success("Thanh toán thành công!", {
-      description: `Đã thanh toán ${grandTotal.toLocaleString()}₹ bằng ${
-        paymentMethod === "cash" ? "tiền mặt" : "chuyển khoản"
-      }.`,
-    });
+    try {
+      // 1. Cập nhật status và payment method của invoice
+      const updateResponse = await fetch(
+        `${API_BASE}/api/invoices/${invoice.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "Đã thanh toán",
+            paymentMethod:
+              paymentMethod === "cash" ? "Tiền mặt" : "Chuyển khoản",
+            balance: grandTotal,
+            currency: "VND",
+          }),
+        }
+      );
+
+      if (!updateResponse.ok) {
+        throw new Error("Cập nhật hóa đơn thất bại");
+      }
+
+      // 2. Nếu có dịch vụ được chọn, thêm vào invoice_item
+      if (selectedServices.length > 0) {
+        for (const service of selectedServices) {
+          // Cắt prefix "SRV" từ service.id để lấy itemId
+          // service.id format: "SRV1", "SRV2", etc. → lấy phần số
+          const itemId = service.id.startsWith("SRV")
+            ? service.id.substring(3)
+            : service.id;
+          console.log(
+            `Service ID: ${service.id}, Item ID: ${itemId}, Name: ${service.name}`
+          );
+          const itemResponse = await fetch(
+            `${API_BASE}/api/invoices/${invoice.id}/services/${itemId}?amount=${service.price}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+
+          if (!itemResponse.ok) {
+            console.warn(
+              `Lỗi thêm dịch vụ ${service.name}: ${itemResponse.status}`
+            );
+          }
+        }
+      }
+
+      onPaymentComplete(
+        invoice.id,
+        grandTotal,
+        paymentMethod,
+        selectedServices
+      );
+      setOpen(false);
+      toast.success("Thanh toán thành công!", {
+        description: `Đã thanh toán ${grandTotal.toLocaleString(
+          "vi-VN"
+        )} đ bằng ${paymentMethod === "cash" ? "tiền mặt" : "chuyển khoản"}.`,
+      });
+    } catch (error) {
+      console.error("Lỗi thanh toán:", error);
+      toast.error("Lỗi thanh toán!", {
+        description:
+          error instanceof Error ? error.message : "Vui lòng thử lại",
+      });
+    }
   };
 
   const handlePrintBill = () => {
-    toast.success("Đang in hóa đơn...", {
-      description: "Hóa đơn sẽ được in trong giây lát.",
+    // In hóa đơn chi tiết thay vì window.print()
+    handlePrintInvoice({
+      invoice,
+      services: selectedServices,
+      roomTotal: invoice.roomPrice * invoice.nights,
+      servicesTotal: selectedServices.reduce(
+        (sum, service) => sum + service.price,
+        0
+      ),
+      grandTotal,
     });
-    window.print();
   };
 
   return (
@@ -120,13 +214,12 @@ export function PaymentDialog({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
-            <DollarSign className="h-6 w-6 text-gray-900" />
             Thanh Toán Hóa Đơn
           </DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-4">
-          {/* Left Column - Invoice Details & Services */}
+          {/* LEFT COLUMN */}
           <div className="space-y-6">
             {/* Invoice Information */}
             <Card className="border-2 border-gray-200">
@@ -144,9 +237,15 @@ export function PaymentDialog({
                     <span className="font-medium">{invoice.guestName}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-gray-600">Giấy tờ</span>
+                    <span className="font-medium">
+                      {formatIdDisplay(invoice.idType, invoice.idNumber)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-gray-600">Phòng:</span>
                     <span className="font-medium">
-                      #{invoice.roomNumber} ({invoice.roomType})
+                      {invoice.roomNumber} ({invoice.roomType})
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -201,15 +300,18 @@ export function PaymentDialog({
                         </Label>
                       </div>
                       <Badge variant="outline" className="font-semibold">
-                        ₹{service.price.toLocaleString()}
+                        {service.price.toLocaleString("vi-VN")} đ
                       </Badge>
                     </div>
                   );
                 })}
               </div>
             </div>
+          </div>
 
-            {/* Bill Summary */}
+          {/* RIGHT COLUMN — MOVED PAYMENT SUMMARY HERE */}
+          <div className="space-y-6">
+            {/* --- CHI TIẾT THANH TOÁN --- */}
             <Card className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300">
               <CardContent className="p-5 space-y-3">
                 <h3 className="font-semibold text-lg mb-4">
@@ -217,33 +319,52 @@ export function PaymentDialog({
                 </h3>
 
                 <div className="space-y-2">
+                  {/* Room Details */}
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      Tiền phòng ({invoice.nights} đêm × ₹
-                      {invoice.roomPrice.toLocaleString()})
-                    </span>
+                    <span className="text-gray-600">Tên phòng:</span>
                     <span className="font-medium text-gray-900">
-                      ₹{roomTotal.toLocaleString()}
+                      {invoice.roomType} - {invoice.roomNumber}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Giá/đêm:</span>
+                    <span className="font-medium text-gray-900">
+                      {invoice.roomPrice.toLocaleString("vi-VN")} đ
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Số đêm:</span>
+                    <span className="font-medium text-gray-900">
+                      {invoice.nights} đêm
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span className="text-gray-700">Tiền phòng:</span>
+                    <span className="text-gray-900">
+                      {roomTotal.toLocaleString("vi-VN")} đ
                     </span>
                   </div>
 
                   {selectedServices.length > 0 && (
                     <>
                       <Separator className="my-2" />
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-gray-700">
-                          Dịch vụ:
-                        </p>
+                      <div className="flex justify-between text-sm font-medium mb-2">
+                        <span className="text-gray-700">Dịch vụ:</span>
+                        <span className="text-gray-900">
+                          {servicesTotal.toLocaleString("vi-VN")} đ
+                        </span>
+                      </div>
+                      <div className="space-y-1 pl-4">
                         {selectedServices.map((service) => (
                           <div
                             key={service.id}
-                            className="flex justify-between text-sm pl-4"
+                            className="flex justify-between text-sm"
                           >
                             <span className="text-gray-600">
                               • {service.name}
                             </span>
-                            <span className="font-medium text-gray-900">
-                              ₹{service.price.toLocaleString()}
+                            <span className="text-gray-600">
+                              {service.price.toLocaleString("vi-VN")} đ
                             </span>
                           </div>
                         ))}
@@ -253,21 +374,19 @@ export function PaymentDialog({
 
                   <Separator className="my-3" />
 
-                  <div className="flex justify-between items-center pt-2">
+                  <div className="flex justify-between items-center pt-2 ">
                     <span className="font-bold text-lg text-gray-900">
                       Tổng Cộng
                     </span>
-                    <span className="font-bold text-2xl text-gray-900">
-                      ₹{grandTotal.toLocaleString()}
+                    <span className="font-bold text-2xl text-blue-900">
+                      {grandTotal.toLocaleString("vi-VN")} đ
                     </span>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Right Column - Payment Method */}
-          <div className="space-y-6">
+            {/* --- PAYMENT METHODS BELOW SUMMARY --- */}
             <div>
               <h3 className="font-semibold text-lg mb-3">
                 Phương Thức Thanh Toán
@@ -277,7 +396,7 @@ export function PaymentDialog({
                 onValueChange={setPaymentMethod}
               >
                 <div className="space-y-3">
-                  {/* Cash Payment */}
+                  {/* Cash */}
                   <div className="border-2 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex items-center space-x-3 mb-3">
                       <RadioGroupItem value="cash" id="cash" />
@@ -299,36 +418,37 @@ export function PaymentDialog({
 
                     {paymentMethod === "cash" && (
                       <div className="space-y-3 mt-4 pt-4 border-t">
-                        <div className="space-y-2">
-                          <Label htmlFor="cash-received">
-                            Tiền khách đưa (₹)
-                          </Label>
-                          <Input
-                            id="cash-received"
-                            type="number"
-                            value={cashReceived}
-                            onChange={(e) => setCashReceived(e.target.value)}
-                            placeholder="Nhập số tiền khách đưa"
-                            className="text-lg"
-                          />
-                        </div>
+                        <Label htmlFor="cash-received">
+                          Tiền khách đưa (đ)
+                        </Label>
+                        <Input
+                          id="cash-received"
+                          type="number"
+                          value={cashReceived}
+                          onChange={(e) => setCashReceived(e.target.value)}
+                          placeholder="Nhập số tiền khách đưa"
+                          className="text-lg"
+                        />
 
                         {cashReceived && (
                           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                            <div className="flex justify-between items-center mb-2">
+                            <div className="flex justify-between mb-2">
                               <span className="text-sm text-blue-800">
                                 Tổng tiền:
                               </span>
                               <span className="font-semibold text-blue-900">
-                                ₹{grandTotal.toLocaleString()}
+                                {grandTotal.toLocaleString("vi-VN")} đ
                               </span>
                             </div>
-                            <div className="flex justify-between items-center mb-2">
+                            <div className="flex justify-between mb-2">
                               <span className="text-sm text-blue-800">
                                 Tiền nhận:
                               </span>
                               <span className="font-semibold text-blue-900">
-                                ₹{parseFloat(cashReceived).toLocaleString()}
+                                {parseFloat(cashReceived).toLocaleString(
+                                  "vi-VN"
+                                )}{" "}
+                                đ
                               </span>
                             </div>
                             <Separator className="my-2" />
@@ -337,7 +457,7 @@ export function PaymentDialog({
                                 Tiền thối:
                               </span>
                               <span className="font-bold text-xl text-blue-900">
-                                ₹{change.toLocaleString()}
+                                {change.toLocaleString("vi-VN")} đ
                               </span>
                             </div>
                           </div>
@@ -370,18 +490,17 @@ export function PaymentDialog({
 
                     {paymentMethod === "transfer" && (
                       <div className="mt-4 pt-4 border-t">
-                        <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg border-2 border-dashed border-gray-300">
-                          <QrCode className="h-12 w-12 text-gray-400 mb-3" />
+                        <div className="flex flex-col items-center p-6 bg-white rounded-lg border-2 border-dashed border-gray-300">
                           <ImageWithFallback
-                            src="https://images.unsplash.com/photo-1571867424488-4565932edb41?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxxciUyMGNvZGUlMjBwYXltZW50fGVufDF8fHx8MTc2MzYyNjI3NHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
+                            src="http://localhost:8080/uploads/qr_code.jpg"
                             alt="QR Code Payment"
                             className="w-48 h-48 object-cover rounded-lg mb-3"
                           />
-                          <p className="text-center text-sm text-gray-600 mb-2">
+                          <p className="text-sm text-gray-600 mb-2">
                             Quét mã QR để thanh toán
                           </p>
                           <p className="font-bold text-lg text-gray-900">
-                            ₹{grandTotal.toLocaleString()}
+                            {grandTotal.toLocaleString("vi-VN")} đ
                           </p>
                         </div>
                       </div>
@@ -391,8 +510,8 @@ export function PaymentDialog({
               </RadioGroup>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-3 pt-4">
+            {/* ACTION BUTTONS */}
+            <div className="flex flex-col gap-3 pt-4 max-w-sm mx-auto w-full">
               <Button
                 className="w-full bg-gray-900 hover:bg-gray-800 h-12"
                 onClick={handlePayment}

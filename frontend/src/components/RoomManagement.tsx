@@ -41,15 +41,17 @@ interface Room {
 // Mapping trạng thái sang màu và nhãn
 const statusColors: Record<string, string> = {
   "Còn Trống": "#22c55e",
-  "Đang dùng phòng": "#ef4444",
+  "Đã đặt": "#0ea5e9",
+  "Đã nhận phòng": "#ef4444",
   "Đang bảo trì": "#facc15",
   "Dọn dẹp": "#6b7280",
-  "Đã trả phòng": "#3b82f6",
+  "Đã trả phòng": "#fba119ff",
 };
 
 const statusLabels: Record<string, string> = {
   "Còn Trống": "Còn Trống",
-  "Đang dùng phòng": "Đang Dùng",
+  "Đã đặt": "Đã đặt",
+  "Đã nhận phòng": "Đã Nhận",
   "Đang bảo trì": "Bảo Trì",
   "Dọn dẹp": "Dọn Dẹp",
   "Đã trả phòng": "Đã Trả",
@@ -81,6 +83,13 @@ export function RoomManagement() {
       .then((data) => setRoomsList(data.map(mapRoomData)))
       .catch(() => toast.error("Không tải được dữ liệu phòng từ server!"));
   };
+
+  // Listen for a global 'roomsUpdated' event to refresh rooms
+  useEffect(() => {
+    const handler = () => fetchRooms();
+    window.addEventListener("roomsUpdated", handler);
+    return () => window.removeEventListener("roomsUpdated", handler);
+  }, []);
 
   // Fetch room types & statuses
   const fetchRoomMeta = () => {
@@ -135,7 +144,7 @@ export function RoomManagement() {
       {/* HEADER */}
       <div className="relative h-64 overflow-hidden">
         <ImageWithFallback
-          src="https://images.unsplash.com/photo-1677129666186-d29eba893fe3"
+          src="http://localhost:8080/uploads/rooms/header.jpg"
           alt="Hotel service"
           className="w-full h-full object-cover"
         />
@@ -161,6 +170,13 @@ export function RoomManagement() {
                   {roomsList.filter((r) => r.statusName === "Còn Trống").length}
                 </span>
                 <span className="text-sm opacity-80">Còn Trống</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Users className="h-5 w-5" />
+                <span className="font-semibold">
+                  {roomsList.filter((r) => r.statusName === "Đã đặt").length}
+                </span>
+                <span className="text-sm opacity-80">Đã đặt</span>
               </div>
             </div>
           </div>
