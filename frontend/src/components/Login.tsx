@@ -18,12 +18,10 @@ import {
 
 interface LoginProps {
   onLogin: (email: string, password: string) => void;
-  onSwitchToRegister: () => void;
 }
 
 export function Login({
   onLogin,
-  onSwitchToRegister,
 }: LoginProps) {
   const [formData, setFormData] = useState({
     email: "",
@@ -137,26 +135,6 @@ export function Login({
               >
                 <LogIn className="h-4 w-4 mr-2" />
                 Đăng Nhập
-              </Button>
-
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500">
-                    Hoặc
-                  </span>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onSwitchToRegister}
-                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 h-11"
-              >
-                Tạo Tài Khoản Mới
               </Button>
             </form>
           </CardContent>

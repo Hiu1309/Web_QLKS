@@ -7,8 +7,7 @@ import { InvoiceManagement } from "./components/InvoiceManagement";
 import { GuestManagement } from "./components/GuestManagement";
 import { ServicesManagement } from "./components/ServicesManagement";
 import { EmployeeManagement } from "./components/EmployeeManagement";
-import { Login, testAccounts } from "./components/Login";
-import { Register } from "./components/Register";
+import { Login } from "./components/Login";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner@2.0.3";
 
@@ -21,8 +20,6 @@ export type ViewType =
   | "services"
   | "employees";
 
-type AuthView = "login" | "register";
-
 interface User {
   name: string;
   email: string;
@@ -31,48 +28,26 @@ interface User {
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard");
-  const [authView, setAuthView] = useState<AuthView>("login");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const handleLogin = (email: string, password: string) => {
-    // Validate against test accounts
-    const account = testAccounts.find(
-      (acc) => acc.email === email && acc.password === password
-    );
-
-    if (account) {
+    // In production, validate against backend API
+    if (email && password) {
       setCurrentUser({
-        name: account.name,
-        email: account.email,
-        role: account.role,
+        name: email.split('@')[0],
+        email: email,
+        role: "user",
       });
       setIsAuthenticated(true);
-      toast.success(`Chào mừng ${account.name}!`, {
-        description: `Đăng nhập thành công với vai trò ${account.label}`,
+      toast.success(`Chào mừng!`, {
+        description: `Đăng nhập thành công`,
       });
     } else {
       toast.error("Đăng nhập thất bại", {
         description: "Email hoặc mật khẩu không đúng",
       });
     }
-  };
-
-  const handleRegister = (
-    name: string,
-    email: string,
-    password: string,
-    phone: string,
-    role: string
-  ) => {
-    // Mock register - in production, send to backend
-    console.log("Register:", { name, email, password, phone, role });
-    setCurrentUser({
-      name: name,
-      email: email,
-      role: role,
-    });
-    setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
@@ -109,17 +84,9 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <>
-        {authView === "login" ? (
-          <Login
-            onLogin={handleLogin}
-            onSwitchToRegister={() => setAuthView("register")}
-          />
-        ) : (
-          <Register
-            onRegister={handleRegister}
-            onSwitchToLogin={() => setAuthView("login")}
-          />
-        )}
+        <Login
+          onLogin={handleLogin}
+        />
         <Toaster />
       </>
     );
