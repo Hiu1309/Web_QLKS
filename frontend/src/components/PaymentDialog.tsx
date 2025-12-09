@@ -14,7 +14,7 @@ import { Checkbox } from "./ui/checkbox";
 import { Separator } from "./ui/separator";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import {
   CreditCard,
   Wallet,
@@ -37,6 +37,7 @@ interface Invoice {
   id: string;
   reservationId: string;
   guestName: string;
+  phone: string;
   roomNumber: string;
   roomType: string;
   roomPrice: number;
@@ -45,6 +46,10 @@ interface Invoice {
   checkOut: string;
   idType?: string;
   idNumber?: string;
+  paymentMethod: string;
+  status: string;
+  isPaid: boolean;
+  createdByUser: string;
 }
 
 const API_BASE =
@@ -211,7 +216,7 @@ export function PaymentDialog({
       <DialogTrigger asChild>
         {trigger || <Button>Thanh Toán</Button>}
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             Thanh Toán Hóa Đơn
@@ -281,8 +286,8 @@ export function PaymentDialog({
                         <Checkbox
                           id={service.id}
                           checked={isSelected}
-                          onCheckedChange={(checked) =>
-                            handleServiceToggle(service, checked as boolean)
+                          onCheckedChange={(checked: boolean) =>
+                            handleServiceToggle(service, checked)
                           }
                         />
                         <Label

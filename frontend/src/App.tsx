@@ -50,6 +50,17 @@ export default function App() {
           role: data.user.roleName,
         });
         setIsAuthenticated(true);
+        
+        // Navigate based on role
+        const roleName = data.user.roleName?.toLowerCase();
+        if (roleName === 'lễ tân' || roleName === 'receptionist') {
+          setCurrentView('reservations');
+        } else if (roleName === 'buồng phòng' || roleName === 'housekeeping') {
+          setCurrentView('rooms');
+        } else {
+          setCurrentView('dashboard');
+        }
+        
         toast.success(`Chào mừng ${data.user.fullName || data.user.username}!`, {
           description: `Đăng nhập thành công`,
         });
@@ -77,7 +88,7 @@ export default function App() {
   const renderCurrentView = () => {
     switch (currentView) {
       case "dashboard":
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentView} />;
       case "rooms":
         return <RoomManagement />;
       case "reservations":

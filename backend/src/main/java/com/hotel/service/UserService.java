@@ -23,8 +23,10 @@ public class UserService {
         existing.setEmail(updated.getEmail());
         existing.setPhone(updated.getPhone());
         existing.setRole(updated.getRole());
-        existing.setUsername(updated.getUsername());
-        existing.setPassword(updated.getPassword());
+        if (updated.getDob() != null) {
+            existing.setDob(updated.getDob());
+        }
+        // Don't update username and password when editing
         return userRepository.save(existing);
     }
     public void deleteUser(Integer id) { userRepository.deleteById(id); }

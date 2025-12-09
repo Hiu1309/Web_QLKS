@@ -24,12 +24,14 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 
 interface Employee {
-  id: string;
-  name: string;
+  userId: number;
+  fullName: string;
+  username?: string;
   phone: string;
   email: string;
-  dateBirth: string;
-  role: "receptionist" | "housekeeping" | "manager";
+  dob: string;
+  roleName: string;
+  createdAt: string;
 }
 
 interface AddEmployeeDialogProps {
@@ -44,30 +46,45 @@ export function AddEmployeeDialog({
   onSave,
 }: AddEmployeeDialogProps) {
   const [open, setOpen] = useState(false);
-  const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(
-    employee?.dateBirth ? new Date(employee.dateBirth) : undefined
-  );
+  const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
   const [formData, setFormData] = useState({
-    name: employee?.name || "",
+    name: "",
     username: "",
     password: "",
-    phone: employee?.phone || "",
-    email: employee?.email || "",
-    role: employee?.role || "receptionist",
+    phone: "",
+    email: "",
+    role: "receptionist",
   });
 
-  // Reset form when dialog closes or when it's for adding new employee
+  // Load employee data when dialog opens
   useEffect(() => {
-    if (!open || !employee) {
+    if (open && employee) {
+      // Editing mode - load existing employee data
+      const roleMap: Record<string, string> = {
+        "Lễ tân": "receptionist",
+        "Buồng phòng": "housekeeping",
+        "Quản lý": "manager",
+      };
       setFormData({
-        name: employee?.name || "",
+        name: employee.fullName || "",
+        username: employee.username || "",
+        password: "",
+        phone: employee.phone || "",
+        email: employee.email || "",
+        role: roleMap[employee.roleName] || "receptionist",
+      });
+      setDateOfBirth(employee.dob ? new Date(employee.dob) : undefined);
+    } else if (open && !employee) {
+      // Adding mode - reset form
+      setFormData({
+        name: "",
         username: "",
         password: "",
-        phone: employee?.phone || "",
-        email: employee?.email || "",
-        role: employee?.role || "receptionist",
+        phone: "",
+        email: "",
+        role: "receptionist",
       });
-      setDateOfBirth(employee?.dateBirth ? new Date(employee.dateBirth) : undefined);
+      setDateOfBirth(undefined);
     }
   }, [open, employee]);
 
@@ -79,14 +96,24 @@ export function AddEmployeeDialog({
       toast.error("Vui lòng nhập họ và tên");
       return;
     }
-    if (!formData.username.trim()) {
-      toast.error("Vui lòng nhập tên đăng nhập");
-      return;
+    
+    // Only validate username and password when adding new employee
+    if (!employee) {
+      if (!formData.username.trim()) {
+        toast.error("Vui lòng nhập tên đăng nhập");
+        return;
+      }
+      if (!formData.password.trim()) {
+        toast.error("Vui lòng nhập mật khẩu");
+        return;
+      }
+      // Validation: Password length
+      if (formData.password.length < 6) {
+        toast.error("Mật khẩu phải có ít nhất 6 ký tự");
+        return;
+      }
     }
-    if (!formData.password.trim()) {
-      toast.error("Vui lòng nhập mật khẩu");
-      return;
-    }
+    
     if (!formData.email.trim()) {
       toast.error("Vui lòng nhập email");
       return;
@@ -97,12 +124,6 @@ export function AddEmployeeDialog({
     }
     if (!dateOfBirth) {
       toast.error("Vui lòng chọn ngày sinh");
-      return;
-    }
-
-    // Validation: Password length
-    if (formData.password.length < 6) {
-      toast.error("Mật khẩu phải có ít nhất 6 ký tự");
       return;
     }
 
@@ -124,9 +145,7 @@ export function AddEmployeeDialog({
       manager: 1,       // Quản lý
     };
 
-    const userData = {
-      username: formData.username.trim(),
-      password: formData.password.trim(),
+    const userData: any = {
       fullName: formData.name.trim(),
       phone: formData.phone.trim(),
       email: formData.email.trim(),
@@ -136,9 +155,20 @@ export function AddEmployeeDialog({
       }
     };
 
+    // Only include username and password when adding new employee
+    if (!employee) {
+      userData.username = formData.username.trim();
+      userData.password = formData.password.trim();
+    }
+
     try {
-      const response = await fetch("http://localhost:8080/api/users", {
-        method: "POST",
+      const url = employee 
+        ? `http://localhost:8080/api/users/${employee.userId}`
+        : "http://localhost:8080/api/users";
+      const method = employee ? "PUT" : "POST";
+      
+      const response = await fetch(url, {
+        method: method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -180,7 +210,7 @@ export function AddEmployeeDialog({
       }
 
       const newUser = await response.json();
-      toast.success("Đã thêm nhân viên thành công");
+      toast.success(employee ? "Đã cập nhật nhân viên thành công" : "Đã thêm nhân viên thành công");
       
       if (onSave) {
         onSave(newUser);
@@ -254,17 +284,18 @@ export function AddEmployeeDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, username: e.target.value })
                 }
-                required
+                required={!employee}
                 minLength={3}
                 pattern="[a-zA-Z0-9_]+"
                 title="Tên đăng nhập chỉ chứa chữ cái, số và dấu gạch dưới"
                 className="border-gray-300 focus:border-gray-500"
                 placeholder="username"
+                disabled={!!employee}
               />
             </div>
 
             <div>
-              <Label htmlFor="password">Mật Khẩu * (tối thiểu 6 ký tự)</Label>
+              <Label htmlFor="password">Mật Khẩu * {employee ? "(không thay đổi)" : "(tối thiểu 6 ký tự)"}</Label>
               <Input
                 id="password"
                 type="password"
@@ -272,10 +303,11 @@ export function AddEmployeeDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
                 }
-                required
+                required={!employee}
                 minLength={6}
                 className="border-gray-300 focus:border-gray-500"
                 placeholder="••••••••"
+                disabled={!!employee}
               />
             </div>
 
@@ -311,89 +343,34 @@ export function AddEmployeeDialog({
               />
             </div>
 
-            <div>
-              <Label>Ngày Sinh * (từ 18 tuổi trở lên)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left border-gray-300 hover:bg-gray-50"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateOfBirth
-                      ? format(dateOfBirth, "dd/MM/yyyy")
-                      : "Chọn ngày"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white" align="start">
-                  <div className="p-3">
-                    <div className="flex gap-2 mb-3">
-                      <Select
-                        value={dateOfBirth ? dateOfBirth.getMonth().toString() : "0"}
-                        onValueChange={(value) => {
-                          const newDate = dateOfBirth ? new Date(dateOfBirth) : new Date();
-                          newDate.setMonth(parseInt(value));
-                          setDateOfBirth(newDate);
-                        }}
-                      >
-                        <SelectTrigger className="w-[110px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">Tháng 1</SelectItem>
-                          <SelectItem value="1">Tháng 2</SelectItem>
-                          <SelectItem value="2">Tháng 3</SelectItem>
-                          <SelectItem value="3">Tháng 4</SelectItem>
-                          <SelectItem value="4">Tháng 5</SelectItem>
-                          <SelectItem value="5">Tháng 6</SelectItem>
-                          <SelectItem value="6">Tháng 7</SelectItem>
-                          <SelectItem value="7">Tháng 8</SelectItem>
-                          <SelectItem value="8">Tháng 9</SelectItem>
-                          <SelectItem value="9">Tháng 10</SelectItem>
-                          <SelectItem value="10">Tháng 11</SelectItem>
-                          <SelectItem value="11">Tháng 12</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={dateOfBirth ? dateOfBirth.getFullYear().toString() : new Date().getFullYear().toString()}
-                        onValueChange={(value) => {
-                          const newDate = dateOfBirth ? new Date(dateOfBirth) : new Date();
-                          newDate.setFullYear(parseInt(value));
-                          setDateOfBirth(newDate);
-                        }}
-                      >
-                        <SelectTrigger className="w-[100px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]" position="popper">
-                          {Array.from({ length: 84 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-                            <SelectItem key={year} value={year.toString()}>
-                              {year}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Calendar
-                      mode="single"
-                      selected={dateOfBirth}
-                      onSelect={setDateOfBirth}
-                      disabled={(date) =>
-                        date > new Date() || date < new Date("1940-01-01")
-                      }
-                      month={dateOfBirth}
-                      onMonthChange={setDateOfBirth}
-                    />
-                  </div>
-                </PopoverContent>
-              </Popover>
+            <div className="space-y-2">
+              <Label htmlFor="dob" className="text-gray-800 flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                Ngày Sinh *
+              </Label>
+              <div className="relative">
+            
+                <Input
+                  id="dob"
+                  type="date"
+                  max={new Date().toISOString().split('T')[0]}
+                  value={dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : ''}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setDateOfBirth(new Date(e.target.value));
+                    }
+                  }}
+                  className="pl-10 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                  required
+                />
+              </div>
             </div>
 
             <div className="md:col-span-2">
               <Label htmlFor="role">Chức Vụ *</Label>
               <Select
                 value={formData.role}
-                onValueChange={(value) =>
+                onValueChange={(value: string) =>
                   setFormData({ ...formData, role: value })
                 }
               >

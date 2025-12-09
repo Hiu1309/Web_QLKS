@@ -25,6 +25,14 @@ const API_BASE =
   (import.meta as any).env?.VITE_API ||
   "http://localhost:8080";
 
+interface DashboardProps {
+  onNavigate?: (view: "dashboard" | "rooms" | "reservations" | "invoices" | "guests" | "services" | "employees") => void;
+}
+
+interface DashboardStats {
+  onNavigate?: (view: "dashboard" | "rooms" | "reservations" | "invoices" | "guests" | "services" | "employees") => void;
+}
+
 interface DashboardStats {
   totalRooms: number;
   occupiedRooms: number;
@@ -43,6 +51,7 @@ interface DashboardStats {
   averageDailyRate: number;
   averageRating?: number | null;
   currency?: string;
+  invoicesToday: number;
 }
 
 interface RecentReservation {
@@ -157,7 +166,7 @@ const formatDateVi = (value?: string) => {
   }
 };
 
-export function Dashboard() {
+export function Dashboard({ onNavigate }: DashboardProps) {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -435,38 +444,6 @@ export function Dashboard() {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-semibold text-gray-900">
-            Thao tác nhanh
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <Button
-                  key={action.title}
-                  className="bg-gray-900 hover:bg-gray-800 text-white border-0 h-28 text-left justify-start shadow-sm hover:shadow-md transition-all group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white/10 rounded-xl group-hover:scale-110 transition-transform">
-                      <Icon className="h-7 w-7" />
-                    </div>
-                    <div>
-                      <span className="font-semibold block text-base">
-                        {action.title}
-                      </span>
-                      <span className="text-xs text-gray-300">
-                        Nhấn để tiếp tục
-                      </span>
-                    </div>
-                  </div>
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Enhanced Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Room Status with Visual Progress */}
@@ -630,6 +607,7 @@ export function Dashboard() {
                 <Button
                   variant="outline"
                   className="w-full hover:bg-gray-50 border-gray-300 text-gray-700"
+                  onClick={() => onNavigate?.("reservations")}
                 >
                   Xem tất cả đặt phòng
                 </Button>

@@ -203,21 +203,16 @@ export function BookingDialog({
   };
 
   useEffect(() => {
-    // fetch available rooms (filter "Còn Trống" status on the client) initially and room types
+    // fetch available rooms (filter by status_id = 1 for "Available") initially and room types
     fetch("http://localhost:8080/api/room-types")
       .then((res) => res.json())
       .then((data) => setRoomTypes(data))
       .catch(() => {});
 
-    fetch("http://localhost:8080/api/rooms")
+    fetch("http://localhost:8080/api/rooms?statusId=1")
       .then((res) => res.json())
-      .then((data) => {
-        const available = data.filter(
-          (r: any) => r.status?.name === "Còn Trống"
-        );
-        setAvailableRooms(available);
-      })
-      .catch(() => {});
+      .then((data) => setAvailableRooms(data))
+      .catch(() => setAvailableRooms([]));
   }, []);
 
   // reload available rooms when selectedRoomTypeId changes
