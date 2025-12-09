@@ -8,7 +8,8 @@ import {
   Coffee,
   Sparkles,
   UserCog,
-  LogOut
+  LogOut,
+  FileText
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { ViewType } from '../App';
@@ -21,12 +22,13 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { id: 'dashboard' as ViewType, label: 'Tổng quan', icon: LayoutDashboard },
-  { id: 'rooms' as ViewType, label: 'Phòng', icon: Bed },
-  { id: 'reservations' as ViewType, label: 'Đặt phòng', icon: Calendar },
-  { id: 'guests' as ViewType, label: 'Khách hàng', icon: Users },
-  { id: 'services' as ViewType, label: 'Dịch vụ', icon: Sparkles },
-  { id: 'employees' as ViewType, label: 'Nhân viên', icon: UserCog },
+  { id: 'dashboard' as ViewType, label: 'Tổng quan', icon: LayoutDashboard, roles: ['Quản lý'] },
+  { id: 'rooms' as ViewType, label: 'Phòng', icon: Bed, roles: ['Quản lý', 'Buồng phòng'] },
+  { id: 'reservations' as ViewType, label: 'Đặt phòng', icon: Calendar, roles: ['Quản lý', 'Lễ tân'] },
+  { id: 'invoices' as ViewType, label: 'Hóa đơn', icon: FileText, roles: ['Quản lý', 'Lễ tân'] },
+  { id: 'guests' as ViewType, label: 'Khách hàng', icon: Users, roles: ['Quản lý', 'Lễ tân'] },
+  { id: 'services' as ViewType, label: 'Dịch vụ', icon: Sparkles, roles: ['Quản lý', 'Buồng phòng'] },
+  { id: 'employees' as ViewType, label: 'Nhân viên', icon: UserCog, roles: ['Quản lý'] },
 ];
 
 export function Sidebar({ currentView, onViewChange, onLogout, currentUser }: SidebarProps) {
@@ -42,6 +44,11 @@ export function Sidebar({ currentView, onViewChange, onLogout, currentUser }: Si
         return role;
     }
   };
+
+  // Filter menu items based on user role
+  const visibleMenuItems = menuItems.filter(item => 
+    !item.roles || !currentUser || item.roles.includes(currentUser.role)
+  );
 
   return (
     <div className="w-72 bg-gradient-to-b from-gray-800 via-gray-700 to-gray-800 border-r border-gray-600 shadow-2xl p-6 relative overflow-hidden flex flex-col">
@@ -66,7 +73,7 @@ export function Sidebar({ currentView, onViewChange, onLogout, currentUser }: Si
       
       {/* Navigation Menu */}
       <nav className="space-y-1.5">
-        {menuItems.map((item, index) => {
+        {visibleMenuItems.map((item, index) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
           return (

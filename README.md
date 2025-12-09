@@ -38,3 +38,4 @@ Cách chạy
 4. chạy react: "npm run dev" (sau bước này sẽ tự mở trình duyệt web hoặc có thể tự truy cập qua http://localhost:3000/)
 
 *Lưu ý: chỉ mới có mục "phòng" trong web là dữ liệu được lấy từ API còn các mục khác chỉ có giao diện với dữ liệu tĩnh tự tạo
+java -jar target\backend-0.0.1-SNAPSHOT.jar

@@ -30,13 +30,13 @@ interface HeaderProps {
 }
 
 const menuItems = [
-  { id: "dashboard" as ViewType, label: "Tổng quan", icon: LayoutDashboard },
-  { id: "rooms" as ViewType, label: "Phòng", icon: Bed },
-  { id: "reservations" as ViewType, label: "Đặt phòng", icon: Calendar },
-  { id: "invoices" as ViewType, label: "Hóa đơn", icon: Receipt },
-  { id: "guests" as ViewType, label: "Khách hàng", icon: Users },
-  { id: "services" as ViewType, label: "Dịch vụ", icon: Sparkles },
-  { id: "employees" as ViewType, label: "Nhân viên", icon: UserCog },
+  { id: "dashboard" as ViewType, label: "Tổng quan", icon: LayoutDashboard, roles: ['Quản lý'] },
+  { id: "rooms" as ViewType, label: "Phòng", icon: Bed, roles: ['Quản lý', 'Buồng phòng'] },
+  { id: "reservations" as ViewType, label: "Đặt phòng", icon: Calendar, roles: ['Quản lý', 'Lễ tân'] },
+  { id: "invoices" as ViewType, label: "Hóa đơn", icon: Receipt, roles: ['Quản lý', 'Lễ tân'] },
+  { id: "guests" as ViewType, label: "Khách hàng", icon: Users, roles: ['Quản lý', 'Lễ tân'] },
+  { id: "services" as ViewType, label: "Dịch vụ", icon: Sparkles, roles: ['Quản lý', 'Buồng phòng'] },
+  { id: "employees" as ViewType, label: "Nhân viên", icon: UserCog, roles: ['Quản lý'] },
 ];
 
 export function Header({
@@ -58,6 +58,11 @@ export function Header({
     }
   };
 
+  // Filter menu items based on user role
+  const visibleMenuItems = menuItems.filter(item => 
+    !item.roles || !currentUser || item.roles.includes(currentUser.role)
+  );
+
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-4">
@@ -78,7 +83,7 @@ export function Header({
 
           {/* Navigation Menu */}
           <nav className="flex items-center gap-1">
-            {menuItems.map((item) => {
+            {visibleMenuItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;
               return (

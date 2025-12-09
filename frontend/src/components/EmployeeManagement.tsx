@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -31,135 +31,93 @@ import {
 } from "./ui/alert-dialog";
 import { AddEmployeeDialog } from "./AddEmployeeDialog";
 import { Search, Plus, Edit, Trash2, UserCheck } from "lucide-react";
-
-type EmployeeRole = "receptionist" | "housekeeping" | "manager";
+import { toast } from "sonner";
 
 interface Employee {
-  id: string;
-  name: string;
+  userId: number;
+  fullName: string;
   phone: string;
   email: string;
-  dateBirth: string;
-  role: EmployeeRole;
+  dob: string;
+  roleName: string;
+  createdAt: string;
 }
 
-// Mock employee data
-const initialEmployees: Employee[] = [
-  {
-    id: "1",
-    name: "Trần Văn A",
-    phone: "098765 43210",
-    email: "raj.sharma@hha.com",
-    dateBirth: "1990-05-15",
-    role: "manager",
-  },
-  {
-    id: "2",
-    name: "Nguyễn Thị B",
-    phone: "087654 32109",
-    email: "priya.patel@hha.com",
-    dateBirth: "1995-08-22",
-    role: "receptionist",
-  },
-  {
-    id: "3",
-    name: "Nguyễn Văn C",
-    phone: "076543 21098",
-    email: "arjun.gupta@hha.com",
-    dateBirth: "1992-03-10",
-    role: "receptionist",
-  },
-  {
-    id: "4",
-    name: "Nguyễn Thị D",
-    phone: "065432 10987",
-    email: "ananya.iyer@hha.com",
-    dateBirth: "1993-11-28",
-    role: "housekeeping",
-  },
-  {
-    id: "5",
-    name: "Trần Văn E",
-    phone: "054321 09876",
-    email: "vikram.singh@hha.com",
-    dateBirth: "1994-07-05",
-    role: "housekeeping",
-  },
-  {
-    id: "6",
-    name: "Lê Thị F",
-    phone: "043210 98765",
-    email: "kavya.reddy@hha.com",
-    dateBirth: "1991-12-18",
-    role: "housekeeping",
-  },
-  {
-    id: "7",
-    name: "Võ Văn G",
-    phone: "032109 87654",
-    email: "amit.desai@hha.com",
-    dateBirth: "1989-04-30",
-    role: "manager",
-  },
-];
-
-const roleColors = {
-  receptionist: "bg-blue-100 text-blue-800",
-  housekeeping: "bg-green-100 text-green-800",
-  manager: "bg-purple-100 text-purple-800",
-};
-
-const getRoleLabel = (role: EmployeeRole) => {
-  switch (role) {
-    case "receptionist":
-      return "Lễ Tân";
-    case "housekeeping":
-      return "Nhân Viên Buồng Phòng";
-    case "manager":
-      return "Quản Lí";
-    default:
-      return role;
-  }
+const roleColors: Record<string, string> = {
+  "Lễ tân": "bg-blue-100 text-blue-800",
+  "Buồng phòng": "bg-green-100 text-green-800",
+  "Quản lý": "bg-purple-100 text-purple-800",
 };
 
 export function EmployeeManagement() {
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch employees from database
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:8080/api/users");
+      if (!response.ok) throw new Error("Failed to fetch employees");
+      const data = await response.json();
+      setEmployees(data);
+    } catch (error) {
+      toast.error("Không thể tải danh sách nhân viên");
+      console.error("Error fetching employees:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.phone.includes(searchTerm);
-    const matchesRole = roleFilter === "all" || employee.role === roleFilter;
+      employee.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.userId.toString().includes(searchTerm) ||
+      employee.phone?.includes(searchTerm);
+    const matchesRole = roleFilter === "all" || employee.roleName === roleFilter;
 
     return matchesSearch && matchesRole;
   });
 
   const handleAddEmployee = (employee: Employee) => {
-    setEmployees([...employees, employee]);
+    fetchEmployees(); // Reload list after adding
   };
 
   const handleEditEmployee = (employee: Employee) => {
-    setEmployees(
-      employees.map((emp) => (emp.id === employee.id ? employee : emp))
-    );
+    fetchEmployees(); // Reload list after editing
     setEditingEmployee(null);
   };
 
-  const handleDeleteEmployee = (id: string) => {
-    setEmployees(employees.filter((emp) => emp.id !== id));
+  const handleDeleteEmployee = async (userId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/users/${userId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete employee");
+      toast.success("Đã xóa nhân viên thành công");
+      fetchEmployees();
+    } catch (error) {
+      toast.error("Không thể xóa nhân viên");
+      console.error("Error deleting employee:", error);
+    }
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
     const date = new Date(dateString);
     return date.toLocaleDateString("vi-VN");
   };
 
   const calculateAge = (dateString: string) => {
+    if (!dateString) return "-";
     const today = new Date();
     const birthDate = new Date(dateString);
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -175,10 +133,18 @@ export function EmployeeManagement() {
 
   const roleStats = {
     total: employees.length,
-    receptionist: employees.filter((emp) => emp.role === "receptionist").length,
-    housekeeping: employees.filter((emp) => emp.role === "housekeeping").length,
-    manager: employees.filter((emp) => emp.role === "manager").length,
+    receptionist: employees.filter((emp) => emp.roleName === "Lễ tân").length,
+    housekeeping: employees.filter((emp) => emp.roleName === "Buồng phòng").length,
+    manager: employees.filter((emp) => emp.roleName === "Quản lý").length,
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <p className="text-slate-600">Đang tải dữ liệu...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
@@ -266,9 +232,9 @@ export function EmployeeManagement() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất Cả Chức Vụ</SelectItem>
-            <SelectItem value="receptionist">Lễ Tân</SelectItem>
-            <SelectItem value="housekeeping">Nhân Viên Buồng Phòng</SelectItem>
-            <SelectItem value="manager">Quản Lí</SelectItem>
+            <SelectItem value="Lễ tân">Lễ Tân</SelectItem>
+            <SelectItem value="Buồng phòng">Buồng Phòng</SelectItem>
+            <SelectItem value="Quản lý">Quản Lý</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -286,6 +252,7 @@ export function EmployeeManagement() {
                 <TableHead className="text-slate-600">Tên Nhân Viên</TableHead>
                 <TableHead className="text-slate-600">Số Điện Thoại</TableHead>
                 <TableHead className="text-slate-600">Email</TableHead>
+                <TableHead className="text-slate-600">Ngày Vào Làm</TableHead>
                 <TableHead className="text-slate-600">Ngày Sinh</TableHead>
                 <TableHead className="text-slate-600">Tuổi</TableHead>
                 <TableHead className="text-slate-600">Chức Vụ</TableHead>
@@ -294,33 +261,36 @@ export function EmployeeManagement() {
             </TableHeader>
             <TableBody>
               {filteredEmployees.map((employee) => (
-                <TableRow key={employee.id} className="hover:bg-slate-50">
+                <TableRow key={employee.userId} className="hover:bg-slate-50">
                   <TableCell className="font-medium text-slate-700">
-                    {employee.id}
+                    {employee.userId}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <UserCheck className="h-4 w-4 text-slate-400" />
                       <span className="font-medium text-slate-700">
-                        {employee.name}
+                        {employee.fullName}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell className="text-slate-600">
-                    {employee.phone}
+                    {employee.phone || "-"}
                   </TableCell>
                   <TableCell className="text-slate-600">
-                    {employee.email}
+                    {employee.email || "-"}
                   </TableCell>
                   <TableCell className="text-slate-600">
-                    {formatDate(employee.dateBirth)}
+                    {formatDate(employee.createdAt)}
                   </TableCell>
                   <TableCell className="text-slate-600">
-                    {calculateAge(employee.dateBirth)} tuổi
+                    {formatDate(employee.dob)}
+                  </TableCell>
+                  <TableCell className="text-slate-600">
+                    {calculateAge(employee.dob)} tuổi
                   </TableCell>
                   <TableCell>
-                    <Badge className={roleColors[employee.role]}>
-                      {getRoleLabel(employee.role)}
+                    <Badge className={roleColors[employee.roleName] || "bg-gray-100 text-gray-800"}>
+                      {employee.roleName}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -356,7 +326,7 @@ export function EmployeeManagement() {
                             <AlertDialogDescription className="text-slate-600">
                               Bạn có chắc chắn muốn xóa nhân viên{" "}
                               <span className="font-semibold">
-                                {employee.name}
+                                {employee.username}
                               </span>
                               ? Hành động này không thể hoàn tác.
                             </AlertDialogDescription>
@@ -366,7 +336,7 @@ export function EmployeeManagement() {
                               Hủy
                             </AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleDeleteEmployee(employee.id)}
+                              onClick={() => handleDeleteEmployee(employee.userId)}
                               className="bg-red-600 hover:bg-red-700"
                             >
                               Xóa

@@ -459,6 +459,7 @@ CREATE TABLE `users` (
   `username` varchar(255) DEFAULT NULL,
   `password` varchar(255) NOT NULL,
   `full_name` varchar(255) DEFAULT NULL,
+  `dob` date DEFAULT NULL,
   `role_id` int(11) NOT NULL,
   `email` varchar(255) DEFAULT NULL,
   `phone` varchar(255) DEFAULT NULL,
@@ -469,10 +470,10 @@ CREATE TABLE `users` (
 -- Đang đổ dữ liệu cho bảng `users`
 --
 
-INSERT INTO `users` (`user_id`, `username`, `password`, `full_name`, `role_id`, `email`, `phone`, `created_at`) VALUES
-(1, 'admin01', 'admin123', 'Nguyen Van A', 1, 'admin01@example.com', '0912345678', '2025-11-26 01:47:21'),
-(2, 'reception01', 'recep123', 'Tran Thi B', 2, 'reception01@example.com', '0923456789', '2025-11-26 01:47:21'),
-(3, 'manager01', 'manager123', 'Le Van C', 3, 'manager01@example.com', '0934567890', '2025-11-26 01:47:21');
+INSERT INTO `users` (`user_id`, `username`, `password`, `full_name`, `dob`, `role_id`, `email`, `phone`, `created_at`) VALUES
+(1, 'admin01', 'admin123', 'Nguyen Van A', '1990-01-15', 1, 'admin01@example.com', '0912345678', '2025-11-26 01:47:21'),
+(2, 'reception01', 'recep123', 'Tran Thi B', '1995-03-20', 2, 'reception01@example.com', '0923456789', '2025-11-26 01:47:21'),
+(3, 'manager01', 'manager123', 'Le Van C', '1988-07-10', 3, 'manager01@example.com', '0934567890', '2025-11-26 01:47:21');
 
 --
 -- Chỉ mục cho các bảng đã đổ

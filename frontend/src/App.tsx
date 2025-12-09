@@ -9,7 +9,7 @@ import { ServicesManagement } from "./components/ServicesManagement";
 import { EmployeeManagement } from "./components/EmployeeManagement";
 import { Login } from "./components/Login";
 import { Toaster } from "./components/ui/sonner";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 export type ViewType =
   | "dashboard"
@@ -31,21 +31,36 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  const handleLogin = (email: string, password: string) => {
-    // In production, validate against backend API
-    if (email && password) {
-      setCurrentUser({
-        name: email.split('@')[0],
-        email: email,
-        role: "user",
+  const handleLogin = async (username: string, password: string) => {
+    try {
+      const response = await fetch('http://localhost:8080/api/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
       });
-      setIsAuthenticated(true);
-      toast.success(`Chào mừng!`, {
-        description: `Đăng nhập thành công`,
-      });
-    } else {
-      toast.error("Đăng nhập thất bại", {
-        description: "Email hoặc mật khẩu không đúng",
+
+      const data = await response.json();
+
+      if (data.success) {
+        setCurrentUser({
+          name: data.user.fullName || data.user.username,
+          email: data.user.email || '',
+          role: data.user.roleName,
+        });
+        setIsAuthenticated(true);
+        toast.success(`Chào mừng ${data.user.fullName || data.user.username}!`, {
+          description: `Đăng nhập thành công`,
+        });
+      } else {
+        toast.error("Đăng nhập thất bại", {
+          description: data.message,
+        });
+      }
+    } catch (error) {
+      toast.error("Lỗi kết nối", {
+        description: "Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại.",
       });
     }
   };

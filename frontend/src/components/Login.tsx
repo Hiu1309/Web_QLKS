@@ -12,25 +12,25 @@ import { Label } from "./ui/label";
 import {
   Diamond,
   LogIn,
-  Mail,
+  User,
   Lock,
 } from "lucide-react";
 
 interface LoginProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (username: string, password: string) => void;
 }
 
 export function Login({
   onLogin,
 }: LoginProps) {
   const [formData, setFormData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(formData.email, formData.password);
+    onLogin(formData.username, formData.password);
   };
 
   return (
@@ -63,26 +63,26 @@ export function Login({
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <Label
-                  htmlFor="email"
+                  htmlFor="username"
                   className="text-gray-700"
                 >
-                  Email
+                  Tên Đăng Nhập
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
+                    id="username"
+                    type="text"
+                    value={formData.username}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        email: e.target.value,
+                        username: e.target.value,
                       })
                     }
                     required
                     className="pl-10 border-gray-300 focus:border-gray-500"
-                    placeholder="example@hha.com"
+                    placeholder="Tên đăng nhập của bạn"
                   />
                 </div>
               </div>
@@ -113,22 +113,7 @@ export function Login({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 text-gray-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300"
-                  />
-                  Ghi nhớ đăng nhập
-                </label>
-                <a
-                  href="#"
-                  className="text-gray-700 hover:text-gray-900 hover:underline"
-                >
-                  Quên mật khẩu?
-                </a>
-              </div>
-
+              
               <Button
                 type="submit"
                 className="w-full bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 text-white shadow-lg h-11"
@@ -136,6 +121,12 @@ export function Login({
                 <LogIn className="h-4 w-4 mr-2" />
                 Đăng Nhập
               </Button>
+
+              <div className="text-center mt-4 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600">
+                  Chưa có tài khoản? <span className="font-semibold text-gray-700">Liên hệ quản lí</span>
+                </p>
+              </div>
             </form>
           </CardContent>
         </Card>

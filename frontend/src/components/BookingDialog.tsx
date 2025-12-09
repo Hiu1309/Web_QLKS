@@ -66,6 +66,7 @@ export function BookingDialog({
     null
   );
   const [lookupMessage, setLookupMessage] = useState("");
+  const [addGuestDialogOpen, setAddGuestDialogOpen] = useState(false);
   const formatCurrency = (val?: number | string | null) => {
     if (val === null || val === undefined || val === "") return "-";
     const num =
@@ -230,6 +231,22 @@ export function BookingDialog({
       .catch(() => setAvailableRooms([]));
   }, [selectedRoomTypeId]);
 
+  // Handle new guest created
+  const handleGuestCreated = (newGuest: any) => {
+    setFoundGuest(newGuest);
+    setLookupMessage("");
+    setFormData((prev) => ({
+      ...prev,
+      guestId: newGuest.guestId,
+      guestName: newGuest.fullName,
+      guestEmail: newGuest.email,
+      guestPhone: newGuest.phone,
+      idNumber: newGuest.idNumber,
+    }));
+    setAddGuestDialogOpen(false);
+    toast.success("Đã thêm khách hàng thành công");
+  };
+
   // Enter-triggered guest lookup
   const searchGuestById = async (
     idNumber?: string,
@@ -373,15 +390,40 @@ export function BookingDialog({
                     className="border-gray-300 focus:border-gray-500"
                     placeholder="001234567890"
                   />
-                  {!foundGuest && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled
-                      title="Tính năng thêm khách chưa hỗ trợ"
-                    >
-                      +
-                    </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      if (formData.idNumber) {
+                        searchGuestById(formData.idNumber);
+                      } else {
+                        setLookupMessage("Vui lòng nhập số giấy tờ");
+                      }
+                    }}
+                    disabled={!formData.idNumber}
+                    title="Tìm kiếm khách hàng"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    🔍
+                  </Button>
+                  {lookupMessage === "Chưa có tài khoản khách" && (
+                    <AddGuestDialog
+                      trigger={
+                        <Button
+                          type="button"
+                          size="sm"
+                          title="Thêm khách hàng mới"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          +
+                        </Button>
+                      }
+                      initial={{
+                        idType: toApiIdType(formData.idType),
+                        idNumber: formData.idNumber,
+                      }}
+                      onCreated={handleGuestCreated}
+                    />
                   )}
                 </div>
 
