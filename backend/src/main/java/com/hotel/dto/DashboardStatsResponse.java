@@ -31,9 +31,13 @@ public class DashboardStatsResponse {
         private BigDecimal todayRevenue = BigDecimal.ZERO;
         private BigDecimal yesterdayRevenue = BigDecimal.ZERO;
         private BigDecimal averageDailyRate = BigDecimal.ZERO;
+        private BigDecimal monthRevenue = BigDecimal.ZERO;
+        private BigDecimal yearRevenue = BigDecimal.ZERO;
         private Double averageRating;
         private String currency = "VND";
         private long invoicesToday;
+        private TopUsage topRoom;
+        private TopUsage topService;
     }
 
     @Data
@@ -47,5 +51,13 @@ public class DashboardStatsResponse {
         private String status;
         private BigDecimal totalAmount = BigDecimal.ZERO;
         private long nights;
+    }
+
+    @Data
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class TopUsage {
+        private String name;
+        private Long count;
+        private String image;
     }
 }

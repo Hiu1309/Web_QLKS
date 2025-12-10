@@ -26,7 +26,9 @@ public class UserService {
         if (updated.getDob() != null) {
             existing.setDob(updated.getDob());
         }
-        // Don't update username and password when editing
+        if (updated.getPassword() != null && !updated.getPassword().isBlank()) {
+            existing.setPassword(updated.getPassword());
+        }
         return userRepository.save(existing);
     }
     public void deleteUser(Integer id) { userRepository.deleteById(id); }

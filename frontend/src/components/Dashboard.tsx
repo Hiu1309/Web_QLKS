@@ -26,11 +26,29 @@ const API_BASE =
   "http://localhost:8080";
 
 interface DashboardProps {
-  onNavigate?: (view: "dashboard" | "rooms" | "reservations" | "invoices" | "guests" | "services" | "employees") => void;
+  onNavigate?: (
+    view:
+      | "dashboard"
+      | "rooms"
+      | "reservations"
+      | "invoices"
+      | "guests"
+      | "services"
+      | "employees"
+  ) => void;
 }
 
 interface DashboardStats {
-  onNavigate?: (view: "dashboard" | "rooms" | "reservations" | "invoices" | "guests" | "services" | "employees") => void;
+  onNavigate?: (
+    view:
+      | "dashboard"
+      | "rooms"
+      | "reservations"
+      | "invoices"
+      | "guests"
+      | "services"
+      | "employees"
+  ) => void;
 }
 
 interface DashboardStats {
@@ -52,6 +70,16 @@ interface DashboardStats {
   averageRating?: number | null;
   currency?: string;
   invoicesToday: number;
+  monthRevenue?: number;
+  yearRevenue?: number;
+  topRoom?: UsageHighlight | null;
+  topService?: UsageHighlight | null;
+}
+
+interface UsageHighlight {
+  name: string;
+  count: number;
+  image?: string | null;
 }
 
 interface RecentReservation {
@@ -68,6 +96,16 @@ interface RecentReservation {
 interface DashboardResponse {
   stats: DashboardStats;
   recentReservations: RecentReservation[];
+}
+
+interface RoomStatusCounts {
+  available: number;
+  booked: number;
+  occupied: number;
+  maintenance: number;
+  cleaning: number;
+  checkedOut: number;
+  total: number;
 }
 
 const quickActions = [
@@ -150,6 +188,34 @@ const getStatusStyle = (status?: string) => {
   );
 };
 
+const ROOM_STATUS_COLORS: Record<string, string> = {
+  "Còn Trống": "#22c55e",
+  "Đã đặt": "#0ea5e9",
+  "Đã nhận phòng": "#ef4444",
+  "Đang bảo trì": "#facc15",
+  "Dọn dẹp": "#6b7280",
+  "Đã trả phòng": "#fba119ff",
+};
+
+const ROOM_STATUS_KEY_MAP: Record<string, keyof RoomStatusCounts> = {
+  "còn trống": "available",
+  "đã đặt": "booked",
+  "đã nhận phòng": "occupied",
+  "đang bảo trì": "maintenance",
+  "dọn dẹp": "cleaning",
+  "đã trả phòng": "checkedOut",
+};
+
+const INITIAL_ROOM_STATUS_COUNTS: RoomStatusCounts = {
+  available: 0,
+  booked: 0,
+  occupied: 0,
+  maintenance: 0,
+  cleaning: 0,
+  checkedOut: 0,
+  total: 0,
+};
+
 const formatDateVi = (value?: string) => {
   if (!value) return "--";
   const normalized = value.length >= 10 ? value.slice(0, 10) : value;
@@ -170,6 +236,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [roomStatusCounts, setRoomStatusCounts] = useState<RoomStatusCounts>(
+    INITIAL_ROOM_STATUS_COUNTS
+  );
+  const [roomImageMap, setRoomImageMap] = useState<Record<string, string>>({});
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -192,6 +262,67 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
+
+  const fetchRoomStatusSummary = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/rooms`);
+      if (!res.ok) {
+        throw new Error("Failed to load rooms");
+      }
+      const rooms = await res.json();
+      const counts: RoomStatusCounts = {
+        available: 0,
+        booked: 0,
+        occupied: 0,
+        maintenance: 0,
+        cleaning: 0,
+        checkedOut: 0,
+        total: 0,
+      };
+      const images: Record<string, string> = {};
+      (rooms || []).forEach((room: any) => {
+        const rawStatus = (room?.status?.name || room?.statusName || "")
+          .toString()
+          .trim()
+          .toLowerCase();
+        const key = ROOM_STATUS_KEY_MAP[rawStatus];
+        counts.total += 1;
+        if (key) {
+          counts[key] += 1;
+        }
+        const roomNumber = (room?.roomNumber || room?.room_number || "")
+          .toString()
+          .trim();
+        if (roomNumber && !images[roomNumber]) {
+          const rawImage =
+            (room?.image && room.image.toString().trim()) ||
+            (room?.roomType?.image && room.roomType.image.toString().trim()) ||
+            "";
+          if (rawImage) {
+            images[roomNumber] = rawImage;
+          }
+        }
+      });
+      setRoomStatusCounts(counts);
+      setRoomImageMap(images);
+    } catch (err) {
+      console.error("Failed to fetch room statuses", err);
+      setRoomStatusCounts(INITIAL_ROOM_STATUS_COUNTS);
+      setRoomImageMap({});
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRoomStatusSummary();
+  }, [fetchRoomStatusSummary]);
+
+  useEffect(() => {
+    const handleRoomsUpdated = () => {
+      fetchRoomStatusSummary();
+    };
+    window.addEventListener("roomsUpdated", handleRoomsUpdated);
+    return () => window.removeEventListener("roomsUpdated", handleRoomsUpdated);
+  }, [fetchRoomStatusSummary]);
 
   const stats = data?.stats;
   const recentReservations = data?.recentReservations ?? [];
@@ -232,12 +363,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     return Number(diff.toFixed(1));
   }, [stats]);
 
-  const totalRooms = stats?.totalRooms ?? 0;
-  const availableRooms = stats?.availableRooms ?? 0;
-  const occupiedRooms = stats?.occupiedRooms ?? 0;
-  const maintenanceRooms = stats?.maintenanceRooms ?? 0;
-  const cleaningRooms = stats?.cleaningRooms ?? 0;
-  const bookedRooms = stats?.bookedRooms ?? 0;
+  const totalRooms = roomStatusCounts.total || stats?.totalRooms || 0;
+  const availableRooms = roomStatusCounts.available;
+  const occupiedRooms = roomStatusCounts.occupied;
+  const maintenanceRooms = roomStatusCounts.maintenance;
+  const cleaningRooms = roomStatusCounts.cleaning;
+  const bookedRooms = roomStatusCounts.booked;
+  const checkedOutRooms = roomStatusCounts.checkedOut;
   const activeRooms = occupiedRooms + bookedRooms;
   const invoicesToday = stats?.invoicesToday ?? 0;
   const checkInsToday = stats?.checkIns ?? 0;
@@ -248,6 +380,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const occupancyRateValue = stats ? Number(stats.occupancyRate ?? 0) : 0;
   const occupancyRateLabel = stats ? `${occupancyRateValue.toFixed(1)}%` : "--";
   const todayRevenueLabel = formatCurrency(Number(stats?.todayRevenue ?? 0));
+  const monthRevenueLabel = formatCurrency(Number(stats?.monthRevenue ?? 0));
+  const yearRevenueLabel = formatCurrency(Number(stats?.yearRevenue ?? 0));
   const averageDailyRateLabel = formatCurrency(
     Number(stats?.averageDailyRate ?? 0)
   );
@@ -267,6 +401,70 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const revenueTrendLabel = `${revenuePositive ? "+" : "-"}${Math.abs(
     revenueGrowth
   ).toFixed(1)}%`;
+
+  const topRoom = stats?.topRoom ?? null;
+  const topService = stats?.topService ?? null;
+
+  const resolveRoomImage = useCallback(
+    (roomNumber: string) => {
+      const raw = roomImageMap[roomNumber];
+      if (!raw) return null;
+      if (/^https?:\/\//i.test(raw)) return raw;
+      const normalizedBase = API_BASE.replace(/\/+$/, "");
+      const normalizedPath = raw.replace(/^\/+/, "");
+      return `${normalizedBase}/${normalizedPath}`;
+    },
+    [roomImageMap]
+  );
+
+  const roomStatusSummary = useMemo(
+    () => [
+      {
+        key: "available",
+        label: "Còn Trống",
+        count: availableRooms,
+        color: ROOM_STATUS_COLORS["Còn Trống"],
+      },
+      {
+        key: "booked",
+        label: "Đã đặt",
+        count: bookedRooms,
+        color: ROOM_STATUS_COLORS["Đã đặt"],
+      },
+      {
+        key: "occupied",
+        label: "Đã nhận phòng",
+        count: occupiedRooms,
+        color: ROOM_STATUS_COLORS["Đã nhận phòng"],
+      },
+      {
+        key: "maintenance",
+        label: "Đang bảo trì",
+        count: maintenanceRooms,
+        color: ROOM_STATUS_COLORS["Đang bảo trì"],
+      },
+      {
+        key: "cleaning",
+        label: "Dọn dẹp",
+        count: cleaningRooms,
+        color: ROOM_STATUS_COLORS["Dọn dẹp"],
+      },
+      {
+        key: "checked-out",
+        label: "Đã trả phòng",
+        count: checkedOutRooms,
+        color: ROOM_STATUS_COLORS["Đã trả phòng"],
+      },
+    ],
+    [
+      availableRooms,
+      bookedRooms,
+      occupiedRooms,
+      maintenanceRooms,
+      cleaningRooms,
+      checkedOutRooms,
+    ]
+  );
 
   return (
     <div className="bg-gray-50">
@@ -444,6 +642,86 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           </Card>
         </div>
 
+        <Card className="border border-gray-200 bg-white hover:shadow-lg transition-all duration-300">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-gray-900">
+              <div className="p-2 bg-gray-900 rounded-lg">
+                <DollarSign className="h-4 w-4 text-white" />
+              </div>
+              Doanh thu theo thời gian
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[{
+                label: "Hôm nay",
+                value: todayRevenueLabel,
+                description: "Doanh thu trong ngày"
+              }, {
+                label: "Tháng này",
+                value: monthRevenueLabel,
+                description: "Tổng doanh thu tháng hiện tại"
+              }, {
+                label: "Năm nay",
+                value: yearRevenueLabel,
+                description: "Tổng doanh thu trong năm"
+              }].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-xl border border-gray-200 bg-gray-50 p-6 hover:border-gray-300 transition-all"
+                >
+                  <p className="text-xs uppercase tracking-wide text-gray-500 mb-2 font-semibold">
+                    {item.label}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">{item.value}</p>
+                  <p className="text-xs text-gray-500 mt-2">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-gray-200 bg-white hover:shadow-lg transition-all duration-300">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-gray-900">
+              <div className="p-2 bg-gray-900 rounded-lg">
+                <Bed className="h-4 w-4 text-white" />
+              </div>
+              Hoạt động nổi bật
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 hover:border-gray-300 transition-all">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-2 font-semibold">
+                  Phòng được đặt nhiều nhất
+                </p>
+                <p className="text-xl font-bold text-gray-900 mb-1">
+                  {topRoom?.name ? `Phòng ${topRoom.name}` : "Chưa có dữ liệu"}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {topRoom && topRoom.count !== undefined
+                    ? `${topRoom.count} lượt đặt`
+                    : "Chưa ghi nhận lượt đặt nào"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 hover:border-gray-300 transition-all">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-2 font-semibold">
+                  Dịch vụ dùng nhiều nhất
+                </p>
+                <p className="text-xl font-bold text-gray-900 mb-1">
+                  {topService?.name || "Chưa có dữ liệu"}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {topService && topService.count !== undefined
+                    ? `${topService.count} lượt sử dụng`
+                    : "Chưa ghi nhận lượt sử dụng nào"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Enhanced Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Room Status with Visual Progress */}
@@ -453,68 +731,33 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 <div className="p-2 bg-gray-900 rounded-lg">
                   <Bed className="h-4 w-4 text-white" />
                 </div>
-                Tổng quan trạng thái phòng
+                Trạng thái phòng
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="font-medium text-gray-700">Trống</span>
+                {roomStatusSummary.map((status) => (
+                  <div key={status.key} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: status.color }}
+                        ></div>
+                        <span className="font-medium text-gray-700">
+                          {status.label}
+                        </span>
+                      </div>
+                      <span className="font-bold text-gray-900">
+                        {status.count}
+                      </span>
+                    </div>
+                    <Progress
+                      value={share(status.count)}
+                      className="h-2 bg-gray-100"
+                    />
                   </div>
-                  <span className="font-bold text-gray-900">
-                    {availableRooms}
-                  </span>
-                </div>
-                <Progress
-                  value={share(availableRooms)}
-                  className="h-2 bg-gray-100"
-                />
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                    <span className="font-medium text-gray-700">
-                      Đang sử dụng
-                    </span>
-                  </div>
-                  <span className="font-bold text-gray-900">{activeRooms}</span>
-                </div>
-                <Progress
-                  value={share(activeRooms)}
-                  className="h-2 bg-gray-100"
-                />
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                    <span className="font-medium text-gray-700">Bảo trì</span>
-                  </div>
-                  <span className="font-bold text-gray-900">
-                    {maintenanceRooms}
-                  </span>
-                </div>
-                <Progress
-                  value={share(maintenanceRooms)}
-                  className="h-2 bg-gray-100"
-                />
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    <span className="font-medium text-gray-700">
-                      Đang dọn dẹp
-                    </span>
-                  </div>
-                  <span className="font-bold text-gray-900">
-                    {cleaningRooms}
-                  </span>
-                </div>
-                <Progress
-                  value={share(cleaningRooms)}
-                  className="h-2 bg-gray-100"
-                />
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -539,6 +782,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       rooms.length > 1 ? `+${rooms.length - 1}` : "";
                     const badgeText = `${mainRoom}${extraCount}`.trim();
                     const statusStyle = getStatusStyle(reservation.status);
+                    const roomImageSrc =
+                      rooms.length > 0
+                        ? resolveRoomImage(mainRoom) || null
+                        : null;
 
                     return (
                       <div
@@ -547,7 +794,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       >
                         <div className="relative">
                           <ImageWithFallback
-                            src="https://images.unsplash.com/photo-1731336478850-6bce7235e320?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob3RlbCUyMHJvb20lMjBsdXh1cnklMjBiZWR8ZW58MXx8fHwxNzU3OTYxMzgxfDA&ixlib=rb-4.1.0&q=80&w=1080"
+                            src={
+                              roomImageSrc ||
+                              "https://images.unsplash.com/photo-1731336478850-6bce7235e320?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob3RlbCUyMHJvb20lMjBsdXh1cnklMjBiZWR8ZW58MXx8fHwxNzU3OTYxMzgxfDA&ixlib=rb-4.1.0&q=80&w=1080"
+                            }
                             alt="Phòng khách sạn"
                             className="w-20 h-20 object-cover rounded-lg border-2 border-gray-200"
                           />

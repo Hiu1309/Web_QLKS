@@ -261,7 +261,14 @@ function mapInvoice(api: ApiInvoice): Invoice {
 
   const statusText = (api.status || "active").toLowerCase();
   const paymentMethod = (api as any)?.paymentMethod ?? "";
-  const createdByUser = (api as any)?.createdByUser?.fullName ?? "Hệ thống";
+
+  const creatorObj =
+    (api as any)?.createdByUser ||
+    stay?.createdByUser ||
+    reservation?.createdByUser ||
+    {};
+  const createdByUser =
+    creatorObj?.fullName || creatorObj?.username || "Hệ thống";
 
   return {
     id: api.invoiceId?.toString() ?? "",
@@ -754,7 +761,7 @@ export function InvoiceManagement() {
                           {invoice.guestName}
                         </p>
                         <p className="text-sm text-slate-500">
-                          {formatIdDisplay(invoice.idType, invoice.idNumber)}
+                          {invoice.phone || "-"}
                         </p>
                       </div>
                     </TableCell>

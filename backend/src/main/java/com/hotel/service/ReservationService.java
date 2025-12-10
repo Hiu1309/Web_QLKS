@@ -60,6 +60,22 @@ public class ReservationService {
         return reservationRepository.findById(id);
     }
 
+    private User resolveUser(User candidate) {
+        if (candidate == null) {
+            return null;
+        }
+        if (candidate.getUserId() != null) {
+            User byId = userRepository.findById(candidate.getUserId()).orElse(null);
+            if (byId != null) {
+                return byId;
+            }
+        }
+        if (candidate.getUsername() != null && !candidate.getUsername().isBlank()) {
+            return userRepository.findByUsername(candidate.getUsername()).orElse(null);
+        }
+        return null;
+    }
+
     public Reservation createReservation(Reservation reservation) {
         // Attach existing guest if provided
         if (reservation.getGuest() != null && reservation.getGuest().getGuestId() != null) {
@@ -68,9 +84,9 @@ public class ReservationService {
         }
 
         // Attach createdByUser if provided
-        if (reservation.getCreatedByUser() != null && reservation.getCreatedByUser().getUserId() != null) {
-            User u = userRepository.findById(reservation.getCreatedByUser().getUserId()).orElse(null);
-            reservation.setCreatedByUser(u);
+        User resolvedCreator = resolveUser(reservation.getCreatedByUser());
+        if (resolvedCreator != null) {
+            reservation.setCreatedByUser(resolvedCreator);
         }
 
         // Ensure reservationRooms link back to reservation and resolve room/roomType objects
@@ -149,9 +165,9 @@ public class ReservationService {
             existing.setGuest(g);
         }
 
-        if (updated.getCreatedByUser() != null && updated.getCreatedByUser().getUserId() != null) {
-            User u = userRepository.findById(updated.getCreatedByUser().getUserId()).orElse(null);
-            existing.setCreatedByUser(u);
+        User updatedCreator = resolveUser(updated.getCreatedByUser());
+        if (updatedCreator != null) {
+            existing.setCreatedByUser(updatedCreator);
         }
 
         // Fetch existing reservation rooms once

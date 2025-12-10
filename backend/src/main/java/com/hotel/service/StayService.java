@@ -43,9 +43,30 @@ public class StayService {
     @Autowired
     private InvoiceService invoiceService;
 
-    public List<Stay> createStaysForReservation(Integer reservationId) {
+    private User resolveActor(Integer requestedUserId, Reservation reservation) {
+        User actor = null;
+        if (requestedUserId != null) {
+            actor = userRepository.findById(requestedUserId).orElse(null);
+        }
+        if (actor == null && reservation != null && reservation.getCreatedByUser() != null) {
+            User reservationCreator = reservation.getCreatedByUser();
+            if (reservationCreator.getUserId() != null) {
+                actor = userRepository.findById(reservationCreator.getUserId()).orElse(reservationCreator);
+            } else {
+                actor = reservationCreator;
+            }
+        }
+        if (actor == null) {
+            actor = userRepository.findById(1).orElse(null);
+        }
+        return actor;
+    }
+
+    public List<Stay> createStaysForReservation(Integer reservationId, Integer requestedUserId) {
         Reservation reservation = reservationRepository.findById(reservationId).orElse(null);
         if (reservation == null) throw new RuntimeException("Reservation not found");
+
+        User actor = resolveActor(requestedUserId, reservation);
 
         List<ReservationRoom> rrs = reservationRoomRepository.findByReservationReservationId(reservationId);
         List<Stay> stays = new ArrayList<>();
@@ -61,9 +82,7 @@ public class StayService {
             s.setStatus("checked-in");
             s.setTotalCost(rr.getPrice() != null ? rr.getPrice() : (rr.getPricePerNight() != null ? rr.getPricePerNight() : null));
             if (s.getTotalCost() == null) s.setTotalCost(null);
-            // Default to user 1 if no createdByUser
-            User u = userRepository.findById(1).orElse(null);
-            s.setCreatedByUser(u);
+            s.setCreatedByUser(actor);
             s.setCreatedAt(new Timestamp(System.currentTimeMillis()));
             stays.add(stayRepository.save(s));
             // set room to 'Đã nhận phòng' when guest checks in
@@ -84,7 +103,9 @@ public class StayService {
         return stays;
     }
 
-    public List<Stay> checkoutStaysForReservation(Integer reservationId) {
+    public List<Stay> checkoutStaysForReservation(Integer reservationId, Integer requestedUserId) {
+        Reservation reservation = reservationRepository.findById(reservationId).orElse(null);
+        User actor = resolveActor(requestedUserId, reservation);
         List<Stay> stays = stayRepository.findByReservationReservationIdAndStatus(reservationId, "checked-in");
         for (Stay s : stays) {
             s.setCheckoutTime(new Timestamp(System.currentTimeMillis()));
@@ -104,14 +125,13 @@ public class StayService {
 
             // Tạo hóa đơn từ Stay này
             try {
-                invoiceService.createInvoiceFromStay(s.getStayId(), 1);
+                invoiceService.createInvoiceFromStay(s.getStayId(), actor);
             } catch (Exception e) {
                 // Log error but don't fail checkout if invoice creation fails
                 System.err.println("Failed to create invoice for stay " + s.getStayId() + ": " + e.getMessage());
             }
         }
         // update reservation status
-        Reservation reservation = reservationRepository.findById(reservationId).orElse(null);
         if (reservation != null) {
             reservation.setStatus("checked-out");
             reservationRepository.save(reservation);

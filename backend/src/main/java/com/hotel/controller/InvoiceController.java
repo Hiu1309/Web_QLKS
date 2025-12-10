@@ -8,8 +8,10 @@ import com.hotel.model.RoomType;
 import com.hotel.model.Guest;
 import com.hotel.model.Reservation;
 import com.hotel.model.Stay;
+import com.hotel.model.User;
 import com.hotel.service.InvoiceService;
 import com.hotel.repository.ItemRepository;
+import com.hotel.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,9 @@ public class InvoiceController {
 
     @Autowired
     private ItemRepository itemRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     /**
      * Lấy tất cả hóa đơn
@@ -79,9 +84,13 @@ public class InvoiceController {
     @PostMapping("/create-from-stay/{stayId}")
     public ResponseEntity<Invoice> createInvoiceFromStay(
             @PathVariable Integer stayId,
-            @RequestParam(defaultValue = "1") Integer createdByUserId) {
+            @RequestParam(required = false) Integer createdByUserId) {
         try {
-            Invoice invoice = invoiceService.createInvoiceFromStay(stayId, createdByUserId);
+            User actor = null;
+            if (createdByUserId != null) {
+                actor = userRepository.findById(createdByUserId).orElse(null);
+            }
+            Invoice invoice = invoiceService.createInvoiceFromStay(stayId, actor);
             return ResponseEntity.status(HttpStatus.CREATED).body(invoice);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -160,6 +169,7 @@ public class InvoiceController {
         public ReservationDTO reservation;
         public StayDTO stay;
         public GuestDTO guest;
+        public UserDTO createdByUser;
 
         static InvoiceDTO fromEntity(Invoice invoice) {
             InvoiceDTO dto = new InvoiceDTO();
@@ -169,12 +179,27 @@ public class InvoiceController {
             dto.balance = invoice.getBalance() != null ? invoice.getBalance().toPlainString() : null;
             dto.createdAt = invoice.getCreatedAt() != null ? invoice.getCreatedAt().toInstant().toString() : null;
 
+            User creator = invoice.getCreatedByUser();
+            if (creator != null) {
+                dto.createdByUser = new UserDTO();
+                dto.createdByUser.userId = creator.getUserId();
+                dto.createdByUser.username = creator.getUsername();
+                dto.createdByUser.fullName = creator.getFullName();
+            }
+
             Stay stay = invoice.getStay();
             if (stay != null) {
                 dto.stay = new StayDTO();
                 dto.stay.totalCost = stay.getTotalCost() != null ? stay.getTotalCost().toString() : null;
                 dto.stay.checkIn = stay.getCheckinTime() != null ? stay.getCheckinTime().toInstant().toString() : null;
                 dto.stay.checkOut = stay.getCheckoutTime() != null ? stay.getCheckoutTime().toInstant().toString() : null;
+                User stayCreator = stay.getCreatedByUser();
+                if (stayCreator != null) {
+                    dto.stay.createdByUser = new UserDTO();
+                    dto.stay.createdByUser.userId = stayCreator.getUserId();
+                    dto.stay.createdByUser.username = stayCreator.getUsername();
+                    dto.stay.createdByUser.fullName = stayCreator.getFullName();
+                }
             }
 
             Reservation reservation = stay != null ? stay.getReservation() : null;
@@ -183,6 +208,13 @@ public class InvoiceController {
                 dto.reservation.reservationId = reservation.getReservationId();
                 dto.reservation.checkIn = dto.stay != null ? dto.stay.checkIn : null;
                 dto.reservation.checkOut = dto.stay != null ? dto.stay.checkOut : null;
+                User reservationCreator = reservation.getCreatedByUser();
+                if (reservationCreator != null) {
+                    dto.reservation.createdByUser = new UserDTO();
+                    dto.reservation.createdByUser.userId = reservationCreator.getUserId();
+                    dto.reservation.createdByUser.username = reservationCreator.getUsername();
+                    dto.reservation.createdByUser.fullName = reservationCreator.getFullName();
+                }
             }
 
             Guest guest = invoice.getGuest();
@@ -223,12 +255,14 @@ public class InvoiceController {
         public String checkIn;
         public String checkOut;
         public RoomDTO room;
+        public UserDTO createdByUser;
     }
 
     static class StayDTO {
         public String totalCost;
         public String checkIn;
         public String checkOut;
+        public UserDTO createdByUser;
     }
 
     static class GuestDTO {
@@ -247,5 +281,11 @@ public class InvoiceController {
     static class RoomTypeDTO {
         public String name;
         public String basePrice;
+    }
+
+    static class UserDTO {
+        public Integer userId;
+        public String username;
+        public String fullName;
     }
 }

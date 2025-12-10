@@ -50,9 +50,10 @@ public class ReservationController {
     }
 
     @PostMapping("/{id}/checkin")
-    public ResponseEntity<?> checkIn(@PathVariable Integer id) {
+    public ResponseEntity<?> checkIn(@PathVariable Integer id,
+                                     @RequestParam(required = false) Integer userId) {
         try {
-            java.util.List<com.hotel.model.Stay> stays = stayService.createStaysForReservation(id);
+            java.util.List<com.hotel.model.Stay> stays = stayService.createStaysForReservation(id, userId);
             return ResponseEntity.ok(stays);
         } catch (RuntimeException e) {
             return ResponseEntity.status(400).body(e.getMessage());
@@ -60,9 +61,10 @@ public class ReservationController {
     }
 
     @PostMapping("/{id}/checkout")
-    public ResponseEntity<?> checkOut(@PathVariable Integer id) {
+    public ResponseEntity<?> checkOut(@PathVariable Integer id,
+                                      @RequestParam(required = false) Integer userId) {
         try {
-            java.util.List<com.hotel.model.Stay> stays = stayService.checkoutStaysForReservation(id);
+            java.util.List<com.hotel.model.Stay> stays = stayService.checkoutStaysForReservation(id, userId);
             return ResponseEntity.ok(stays);
         } catch (RuntimeException e) {
             return ResponseEntity.status(400).body(e.getMessage());

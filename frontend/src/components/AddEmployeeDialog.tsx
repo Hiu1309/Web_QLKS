@@ -32,6 +32,7 @@ interface Employee {
   dob: string;
   roleName: string;
   createdAt: string;
+  password?: string;
 }
 
 interface AddEmployeeDialogProps {
@@ -68,7 +69,7 @@ export function AddEmployeeDialog({
       setFormData({
         name: employee.fullName || "",
         username: employee.username || "",
-        password: "",
+        password: employee.password || "",
         phone: employee.phone || "",
         email: employee.email || "",
         role: roleMap[employee.roleName] || "receptionist",
@@ -91,29 +92,34 @@ export function AddEmployeeDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const trimmedPassword = formData.password.trim();
+
     // Validation: Check empty fields
     if (!formData.name.trim()) {
       toast.error("Vui lòng nhập họ và tên");
       return;
     }
-    
+
     // Only validate username and password when adding new employee
     if (!employee) {
       if (!formData.username.trim()) {
         toast.error("Vui lòng nhập tên đăng nhập");
         return;
       }
-      if (!formData.password.trim()) {
+      if (!trimmedPassword) {
         toast.error("Vui lòng nhập mật khẩu");
         return;
       }
       // Validation: Password length
-      if (formData.password.length < 6) {
+      if (trimmedPassword.length < 6) {
         toast.error("Mật khẩu phải có ít nhất 6 ký tự");
         return;
       }
+    } else if (trimmedPassword && trimmedPassword.length < 6) {
+      toast.error("Mật khẩu mới phải có ít nhất 6 ký tự");
+      return;
     }
-    
+
     if (!formData.email.trim()) {
       toast.error("Vui lòng nhập email");
       return;
@@ -131,8 +137,12 @@ export function AddEmployeeDialog({
     const today = new Date();
     const age = today.getFullYear() - dateOfBirth.getFullYear();
     const monthDiff = today.getMonth() - dateOfBirth.getMonth();
-    const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateOfBirth.getDate()) ? age - 1 : age;
-    
+    const actualAge =
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < dateOfBirth.getDate())
+        ? age - 1
+        : age;
+
     if (actualAge < 18) {
       toast.error("Nhân viên phải từ 18 tuổi trở lên");
       return;
@@ -140,9 +150,9 @@ export function AddEmployeeDialog({
 
     // Map role to role_id
     const roleIdMap: Record<string, number> = {
-      receptionist: 2,  // Lễ tân
-      housekeeping: 3,  // Buồng phòng
-      manager: 1,       // Quản lý
+      receptionist: 2, // Lễ tân
+      housekeeping: 3, // Buồng phòng
+      manager: 1, // Quản lý
     };
 
     const userData: any = {
@@ -151,22 +161,24 @@ export function AddEmployeeDialog({
       email: formData.email.trim(),
       dob: dateOfBirth ? format(dateOfBirth, "yyyy-MM-dd") : null,
       role: {
-        roleId: roleIdMap[formData.role]
-      }
+        roleId: roleIdMap[formData.role],
+      },
     };
 
     // Only include username and password when adding new employee
     if (!employee) {
       userData.username = formData.username.trim();
-      userData.password = formData.password.trim();
+      userData.password = trimmedPassword;
+    } else if (trimmedPassword) {
+      userData.password = trimmedPassword;
     }
 
     try {
-      const url = employee 
+      const url = employee
         ? `http://localhost:8080/api/users/${employee.userId}`
         : "http://localhost:8080/api/users";
       const method = employee ? "PUT" : "POST";
-      
+
       const response = await fetch(url, {
         method: method,
         headers: {
@@ -178,7 +190,7 @@ export function AddEmployeeDialog({
       if (!response.ok) {
         const errorText = await response.text();
         console.log("Error response text:", errorText);
-        
+
         let errorData;
         try {
           errorData = JSON.parse(errorText);
@@ -186,42 +198,74 @@ export function AddEmployeeDialog({
         } catch {
           errorData = { message: errorText };
         }
-        
+
         // Get error message from various possible fields
-        const errorMessage = errorData.error || errorData.message || errorData.trace || errorText || "";
+        const errorMessage =
+          errorData.error ||
+          errorData.message ||
+          errorData.trace ||
+          errorText ||
+          "";
         console.log("Final error message:", errorMessage);
-        
+
         // Check for duplicate username (case insensitive)
-        if (errorMessage.toLowerCase().includes("duplicate entry") && errorMessage.toLowerCase().includes("username")) {
-          throw new Error("Tên đăng nhập đã tồn tại. Vui lòng chọn tên đăng nhập khác.");
+        if (
+          errorMessage.toLowerCase().includes("duplicate entry") &&
+          errorMessage.toLowerCase().includes("username")
+        ) {
+          throw new Error(
+            "Tên đăng nhập đã tồn tại. Vui lòng chọn tên đăng nhập khác."
+          );
         }
-        
+
         // Check for duplicate email (case insensitive)
-        if (errorMessage.toLowerCase().includes("duplicate entry") && errorMessage.toLowerCase().includes("email")) {
-          throw new Error("Email đã được sử dụng. Vui lòng sử dụng email khác.");
+        if (
+          errorMessage.toLowerCase().includes("duplicate entry") &&
+          errorMessage.toLowerCase().includes("email")
+        ) {
+          throw new Error(
+            "Email đã được sử dụng. Vui lòng sử dụng email khác."
+          );
         }
-        
+
         // Check for duplicate phone (case insensitive)
-        if (errorMessage.toLowerCase().includes("duplicate entry") && errorMessage.toLowerCase().includes("phone")) {
-          throw new Error("Số điện thoại đã được sử dụng. Vui lòng sử dụng số điện thoại khác.");
+        if (
+          errorMessage.toLowerCase().includes("duplicate entry") &&
+          errorMessage.toLowerCase().includes("phone")
+        ) {
+          throw new Error(
+            "Số điện thoại đã được sử dụng. Vui lòng sử dụng số điện thoại khác."
+          );
         }
-        
+
         throw new Error("Không thể thêm nhân viên");
       }
 
       const newUser = await response.json();
-      toast.success(employee ? "Đã cập nhật nhân viên thành công" : "Đã thêm nhân viên thành công");
-      
+      toast.success(
+        employee
+          ? "Đã cập nhật nhân viên thành công"
+          : "Đã thêm nhân viên thành công"
+      );
+
       if (onSave) {
         onSave(newUser);
       }
 
       // Reset form
-      setFormData({ name: "", username: "", password: "", phone: "", email: "", role: "receptionist" });
+      setFormData({
+        name: "",
+        username: "",
+        password: "",
+        phone: "",
+        email: "",
+        role: "receptionist",
+      });
       setDateOfBirth(undefined);
       setOpen(false);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Lỗi không xác định";
+      const errorMessage =
+        error instanceof Error ? error.message : "Lỗi không xác định";
       toast.error(errorMessage);
       console.error("Error adding employee:", error);
     }
@@ -295,10 +339,12 @@ export function AddEmployeeDialog({
             </div>
 
             <div>
-              <Label htmlFor="password">Mật Khẩu * {employee ? "(không thay đổi)" : "(tối thiểu 6 ký tự)"}</Label>
+              <Label htmlFor="password">
+                {employee ? "Mật Khẩu *" : "Mật Khẩu * (tối thiểu 6 ký tự)"}
+              </Label>
               <Input
                 id="password"
-                type="password"
+                type={employee ? "text" : "password"}
                 value={formData.password}
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
@@ -306,8 +352,8 @@ export function AddEmployeeDialog({
                 required={!employee}
                 minLength={6}
                 className="border-gray-300 focus:border-gray-500"
-                placeholder="••••••••"
-                disabled={!!employee}
+                placeholder={employee ? "" : "••••••••"}
+                autoComplete={employee ? "off" : "new-password"}
               />
             </div>
 
@@ -344,17 +390,21 @@ export function AddEmployeeDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dob" className="text-gray-800 flex items-center gap-2">
+              <Label
+                htmlFor="dob"
+                className="text-gray-800 flex items-center gap-2"
+              >
                 <CalendarIcon className="h-4 w-4" />
                 Ngày Sinh *
               </Label>
               <div className="relative">
-            
                 <Input
                   id="dob"
                   type="date"
-                  max={new Date().toISOString().split('T')[0]}
-                  value={dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : ''}
+                  max={new Date().toISOString().split("T")[0]}
+                  value={
+                    dateOfBirth ? dateOfBirth.toISOString().split("T")[0] : ""
+                  }
                   onChange={(e) => {
                     if (e.target.value) {
                       setDateOfBirth(new Date(e.target.value));

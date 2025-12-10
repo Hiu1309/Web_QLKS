@@ -10,7 +10,7 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { AddGuestDialog } from "./AddGuestDialog";
+import { AddEditGuestDialog } from "./AddEditGuestDialog";
 import {
   Select,
   SelectContent,
@@ -31,6 +31,11 @@ interface BookingDialogProps {
   roomType?: string;
   roomPrice?: number;
   onCreated?: (reservation: any) => void;
+  currentUser?: {
+    userId?: number;
+    username?: string;
+    name?: string;
+  };
 }
 
 export function BookingDialog({
@@ -39,6 +44,7 @@ export function BookingDialog({
   roomType,
   roomPrice,
   onCreated,
+  currentUser,
 }: BookingDialogProps) {
   const [open, setOpen] = useState(false);
   const [checkInDate, setCheckInDate] = useState<Date>();
@@ -66,7 +72,6 @@ export function BookingDialog({
     null
   );
   const [lookupMessage, setLookupMessage] = useState("");
-  const [addGuestDialogOpen, setAddGuestDialogOpen] = useState(false);
   const formatCurrency = (val?: number | string | null) => {
     if (val === null || val === undefined || val === "") return "-";
     const num =
@@ -93,15 +98,8 @@ export function BookingDialog({
   };
   // use Enter-based lookup instead of suggestions
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Booking submitted:", {
-      ...formData,
-      checkInDate,
-      checkOutDate,
-      totalPrice: calculateTotal(),
-    });
-    // send reservation to backend
     if (!formData.guestId && !foundGuest) {
       toast.error("Vui lòng chọn hoặc thêm khách hàng trước khi đặt phòng");
       return;
@@ -124,6 +122,15 @@ export function BookingDialog({
       ? parseInt(String(formData.guestId))
       : foundGuest && foundGuest.guestId;
 
+    const creatorPayload =
+      currentUser?.userId != null
+        ? {
+            userId: Number(currentUser.userId),
+            username: currentUser.username,
+            fullName: currentUser.name,
+          }
+        : undefined;
+
     const reservation = {
       guest: {
         guestId: guestIdVal,
@@ -143,50 +150,79 @@ export function BookingDialog({
           : undefined,
         pricePerNight: r.roomType?.basePrice || r.basePrice || undefined,
       })),
+      createdByUser: creatorPayload,
     };
 
-    fetch(`${API_BASE}/api/reservations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(reservation),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          // Try to extract server error message
-          const body = await res.text().catch(() => "");
-          try {
-            const json = JSON.parse(body || "{}");
-            const msg =
-              json.message || json.error || body || "Đặt phòng thất bại";
-            console.error("Reservation POST failed:", json);
-            toast.error(msg);
-          } catch (e) {
-            console.error("Reservation POST failed:", body);
-            toast.error(body || "Đặt phòng thất bại");
-          }
-          throw new Error("Đặt phòng thất bại");
-        }
-        toast.success("Đặt phòng thành công");
-        res
-          .json()
-          .then((data) => {
-            onCreated && onCreated(data);
-            // notify any listeners (room list) to refresh since a room status may have changed
-            try {
-              window.dispatchEvent(new Event("roomsUpdated"));
-            } catch (e) {
-              /* ignore */
-            }
-            setOpen(false);
-          })
-          .catch(() => {
-            setOpen(false);
-          });
-      })
-      .catch((err) => {
-        if (!(err instanceof Error)) console.error(err);
-        toast.error(err?.message || "Đặt phòng thất bại");
+    try {
+      const res = await fetch(`${API_BASE}/api/reservations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reservation),
       });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        try {
+          const json = JSON.parse(body || "{}");
+          const msg =
+            json.message || json.error || body || "Đặt phòng thất bại";
+          console.error("Reservation POST failed:", json);
+          toast.error(msg);
+        } catch (err) {
+          console.error("Reservation POST failed:", body);
+          toast.error(body || "Đặt phòng thất bại");
+        }
+        return;
+      }
+
+      const createdReservation = await res.json();
+
+      if (
+        creatorPayload?.userId &&
+        createdReservation?.reservationId &&
+        (createdReservation?.createdByUser?.userId ??
+          createdReservation?.user?.userId) !== creatorPayload.userId
+      ) {
+        try {
+          await fetch(
+            `${API_BASE}/api/reservations/${createdReservation.reservationId}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...createdReservation,
+                createdByUser: { userId: creatorPayload.userId },
+              }),
+            }
+          );
+        } catch (err) {
+          console.error("Unable to sync reservation creator", err);
+        }
+      }
+
+      const normalizedCreated = creatorPayload?.userId
+        ? {
+            ...createdReservation,
+            createdByUser: {
+              userId: creatorPayload.userId,
+              username: creatorPayload.username,
+              fullName: creatorPayload.fullName,
+            },
+          }
+        : createdReservation;
+
+      toast.success("Đặt phòng thành công");
+      onCreated && onCreated(normalizedCreated);
+      try {
+        window.dispatchEvent(new Event("roomsUpdated"));
+      } catch (err) {
+        /* ignore */
+      }
+      setOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Đặt phòng thất bại");
+    }
   };
 
   const calculateTotal = () => {
@@ -238,7 +274,6 @@ export function BookingDialog({
       guestPhone: newGuest.phone,
       idNumber: newGuest.idNumber,
     }));
-    setAddGuestDialogOpen(false);
     toast.success("Đã thêm khách hàng thành công");
   };
 
@@ -402,7 +437,8 @@ export function BookingDialog({
                     🔍
                   </Button>
                   {lookupMessage === "Chưa có tài khoản khách" && (
-                    <AddGuestDialog
+                    <AddEditGuestDialog
+                      mode="add"
                       trigger={
                         <Button
                           type="button"

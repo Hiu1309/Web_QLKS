@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -53,6 +53,12 @@ interface ReservationRoomDto {
   price?: number;
 }
 
+interface ReservationUserInfo {
+  userId?: number;
+  username?: string;
+  fullName?: string;
+}
+
 interface Reservation {
   reservationId: number;
   guest: {
@@ -68,7 +74,17 @@ interface Reservation {
   totalEstimated: number;
   status: ReservationStatus | string;
   reservationRooms?: ReservationRoomDto[];
-  user?: { userId: number; username: string; fullName?: string };
+  user?: ReservationUserInfo | null;
+  createdByUser?: ReservationUserInfo | null;
+  createdAt?: string;
+}
+
+interface ReservationManagementProps {
+  currentUser?: {
+    userId?: number;
+    username?: string;
+    name?: string;
+  };
 }
 
 const API_BASE =
@@ -175,7 +191,19 @@ const formatDateDisplay = (value?: string) => {
   }
 };
 
-export function ReservationManagement() {
+const normalizeReservation = (reservation: any): Reservation => {
+  if (!reservation) return reservation;
+  const creator = reservation.createdByUser || reservation.user || null;
+  return {
+    ...reservation,
+    createdByUser: creator,
+    user: creator,
+  } as Reservation;
+};
+
+export function ReservationManagement({
+  currentUser,
+}: ReservationManagementProps) {
   const [reservationsList, setReservationsList] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -183,13 +211,16 @@ export function ReservationManagement() {
   const [selectedReservation, setSelectedReservation] =
     useState<Reservation | null>(null);
 
-  const fetchReservations = () => {
+  const fetchReservations = useCallback(() => {
     setLoading(true);
     fetch(`${API_BASE}/api/reservations`)
       .then((r) => r.json())
       .then((data) => {
         // Hiển thị cả các đặt phòng đã hủy; sắp xếp mới nhất trước
-        const sorted = (data || []).slice().sort((a: any, b: any) => {
+        const normalized = (data || []).map((item: any) =>
+          normalizeReservation(item)
+        );
+        const sorted = normalized.slice().sort((a, b) => {
           const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return bTime - aTime;
@@ -198,11 +229,11 @@ export function ReservationManagement() {
       })
       .catch(() => toast.error("Không tải được danh sách đặt phòng"))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
   useEffect(() => {
     fetchReservations();
-  }, []);
+  }, [fetchReservations]);
 
   const updateReservationStatus = async (
     reservationId: number,
@@ -229,41 +260,45 @@ export function ReservationManagement() {
         }
         throw new Error("update failed");
       }
-      const updatedFromServer = await resp.json();
-      // keep detail view in sync if currently selected
+      const updatedFromServer = normalizeReservation(await resp.json());
+      const mergedReservation: Reservation = {
+        ...normalizeReservation(r),
+        ...updatedFromServer,
+        reservationRooms:
+          updatedFromServer?.reservationRooms &&
+          updatedFromServer.reservationRooms.length > 0
+            ? updatedFromServer.reservationRooms
+            : r.reservationRooms,
+      };
+
       if (
         selectedReservation &&
         selectedReservation.reservationId === reservationId
       ) {
-        if (newStatus === "cancelled") {
-          setSelectedReservation(null);
-        } else {
-          setSelectedReservation(updatedFromServer);
-        }
+        setSelectedReservation(mergedReservation);
       }
-      // If cancelled, remove from list
-      if (newStatus === "cancelled") {
-        setReservationsList((prev) =>
-          prev.filter((p) => p.reservationId !== reservationId)
-        );
-      } else {
-        setReservationsList((prev) =>
-          prev.map((item) =>
-            item.reservationId === reservationId ? updatedFromServer : item
-          )
-        );
-      }
-      return updatedFromServer;
+
+      setReservationsList((prev) =>
+        prev.map((item) =>
+          item.reservationId === reservationId ? mergedReservation : item
+        )
+      );
+
+      fetchReservations();
+      return mergedReservation;
     } catch (err) {
       toast.error("Không thể đổi trạng thái");
       return null;
     }
   };
 
+  const buildUserQuery = () =>
+    currentUser?.userId != null ? `?userId=${currentUser.userId}` : "";
+
   const handleCheckIn = async (reservationId: number) => {
     try {
       const res = await fetch(
-        `${API_BASE}/api/reservations/${reservationId}/checkin`,
+        `${API_BASE}/api/reservations/${reservationId}/checkin${buildUserQuery()}`,
         {
           method: "POST",
         }
@@ -286,7 +321,7 @@ export function ReservationManagement() {
   const handleCheckOut = async (reservationId: number) => {
     try {
       const res = await fetch(
-        `${API_BASE}/api/reservations/${reservationId}/checkout`,
+        `${API_BASE}/api/reservations/${reservationId}/checkout${buildUserQuery()}`,
         {
           method: "POST",
         }
@@ -352,6 +387,7 @@ export function ReservationManagement() {
               Đặt Phòng Mới
             </Button>
           }
+          currentUser={currentUser}
           onCreated={() => fetchReservations()}
         />
       </div>
@@ -415,7 +451,7 @@ export function ReservationManagement() {
                         {reservation.guest?.fullName}
                       </p>
                       <p className="text-sm text-slate-500">
-                        {reservation.guest?.email}
+                        {reservation.guest?.phone || "-"}
                       </p>
                     </div>
                   </TableCell>
@@ -491,7 +527,9 @@ export function ReservationManagement() {
                                   `${API_BASE}/api/reservations/${reservation.reservationId}`
                                 );
                                 if (res.ok) {
-                                  const data = await res.json();
+                                  const data = normalizeReservation(
+                                    await res.json()
+                                  );
                                   const mergedRooms =
                                     data?.reservationRooms &&
                                     data.reservationRooms.length > 0
@@ -509,7 +547,9 @@ export function ReservationManagement() {
                                   e
                                 );
                               }
-                              setSelectedReservation(reservation);
+                              setSelectedReservation(
+                                normalizeReservation(reservation)
+                              );
                             }}
                             className="border-slate-300 hover:bg-slate-50"
                           >
@@ -616,8 +656,10 @@ export function ReservationManagement() {
                                       Người tạo
                                     </Label>
                                     <p className="font-medium text-slate-700">
-                                      {selectedReservation.user?.fullName ||
-                                        selectedReservation.user?.username ||
+                                      {selectedReservation.createdByUser
+                                        ?.fullName ||
+                                        selectedReservation.createdByUser
+                                          ?.username ||
                                         "-"}
                                     </p>
                                   </div>
@@ -683,7 +725,10 @@ export function ReservationManagement() {
                         reservation={reservation}
                         onSave={(updated) => {
                           fetchReservations();
-                          if (updated) setSelectedReservation(updated);
+                          if (updated)
+                            setSelectedReservation(
+                              normalizeReservation(updated)
+                            );
                         }}
                         trigger={
                           <Button

@@ -21,6 +21,8 @@ export type ViewType =
   | "employees";
 
 interface User {
+  userId: number;
+  username: string;
   name: string;
   email: string;
   role: string;
@@ -33,10 +35,10 @@ export default function App() {
 
   const handleLogin = async (username: string, password: string) => {
     try {
-      const response = await fetch('http://localhost:8080/api/users/login', {
-        method: 'POST',
+      const response = await fetch("http://localhost:8080/api/users/login", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ username, password }),
       });
@@ -45,25 +47,30 @@ export default function App() {
 
       if (data.success) {
         setCurrentUser({
+          userId: data.user.userId,
+          username: data.user.username,
           name: data.user.fullName || data.user.username,
-          email: data.user.email || '',
+          email: data.user.email || "",
           role: data.user.roleName,
         });
         setIsAuthenticated(true);
-        
+
         // Navigate based on role
         const roleName = data.user.roleName?.toLowerCase();
-        if (roleName === 'lễ tân' || roleName === 'receptionist') {
-          setCurrentView('reservations');
-        } else if (roleName === 'buồng phòng' || roleName === 'housekeeping') {
-          setCurrentView('rooms');
+        if (roleName === "lễ tân" || roleName === "receptionist") {
+          setCurrentView("reservations");
+        } else if (roleName === "buồng phòng" || roleName === "housekeeping") {
+          setCurrentView("rooms");
         } else {
-          setCurrentView('dashboard');
+          setCurrentView("dashboard");
         }
-        
-        toast.success(`Chào mừng ${data.user.fullName || data.user.username}!`, {
-          description: `Đăng nhập thành công`,
-        });
+
+        toast.success(
+          `Chào mừng ${data.user.fullName || data.user.username}!`,
+          {
+            description: `Đăng nhập thành công`,
+          }
+        );
       } else {
         toast.error("Đăng nhập thất bại", {
           description: data.message,
@@ -92,7 +99,7 @@ export default function App() {
       case "rooms":
         return <RoomManagement />;
       case "reservations":
-        return <ReservationManagement />;
+        return <ReservationManagement currentUser={currentUser || undefined} />;
       case "invoices":
         return <InvoiceManagement />;
       case "guests":
@@ -110,9 +117,7 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <>
-        <Login
-          onLogin={handleLogin}
-        />
+        <Login onLogin={handleLogin} />
         <Toaster />
       </>
     );

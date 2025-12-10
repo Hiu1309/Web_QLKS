@@ -27,15 +27,32 @@ public class InvoiceService {
     /**
      * Tạo hóa đơn từ một Stay (được gọi khi trả phòng)
      */
-    public Invoice createInvoiceFromStay(Integer stayId, Integer createdByUserId) {
+    public Invoice createInvoiceFromStay(Integer stayId, User createdByUser) {
         Optional<Stay> stayOpt = stayRepository.findById(stayId);
         if (!stayOpt.isPresent()) {
             throw new RuntimeException("Stay not found with id: " + stayId);
         }
 
         Stay stay = stayOpt.get();
-        Optional<User> userOpt = userRepository.findById(createdByUserId);
-        User user = userOpt.orElse(null);
+        User user = null;
+        if (createdByUser != null) {
+            if (createdByUser.getUserId() != null) {
+                user = userRepository.findById(createdByUser.getUserId()).orElse(createdByUser);
+            } else {
+                user = createdByUser;
+            }
+        }
+        if (user == null && stay.getReservation() != null && stay.getReservation().getCreatedByUser() != null) {
+            User reservationCreator = stay.getReservation().getCreatedByUser();
+            if (reservationCreator.getUserId() != null) {
+                user = userRepository.findById(reservationCreator.getUserId()).orElse(reservationCreator);
+            } else {
+                user = reservationCreator;
+            }
+        }
+        if (user == null) {
+            user = userRepository.findById(1).orElse(null);
+        }
 
         // Tạo Invoice mới
         Invoice invoice = new Invoice();

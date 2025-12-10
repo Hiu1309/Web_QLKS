@@ -29,18 +29,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
-import { AddEmployeeDialog } from "./AddEmployeeDialog";
+import { AddEditEmployeeDialog } from "./AddEditEmployeeDialog";
 import { Search, Plus, Edit, Trash2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
 interface Employee {
   userId: number;
+  username?: string;
   fullName: string;
   phone: string;
   email: string;
   dob: string;
   roleName: string;
   createdAt: string;
+  password?: string;
 }
 
 const roleColors: Record<string, string> = {
@@ -78,11 +80,14 @@ export function EmployeeManagement() {
 
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
-      employee.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (employee.username || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.userId.toString().includes(searchTerm) ||
       employee.phone?.includes(searchTerm);
-    const matchesRole = roleFilter === "all" || employee.roleName === roleFilter;
+    const matchesRole =
+      roleFilter === "all" || employee.roleName === roleFilter;
 
     return matchesSearch && matchesRole;
   });
@@ -98,9 +103,12 @@ export function EmployeeManagement() {
 
   const handleDeleteEmployee = async (userId: number) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/users/${userId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/users/${userId}`,
+        {
+          method: "DELETE",
+        }
+      );
       if (!response.ok) throw new Error("Failed to delete employee");
       toast.success("Đã xóa nhân viên thành công");
       fetchEmployees();
@@ -134,7 +142,8 @@ export function EmployeeManagement() {
   const roleStats = {
     total: employees.length,
     receptionist: employees.filter((emp) => emp.roleName === "Lễ tân").length,
-    housekeeping: employees.filter((emp) => emp.roleName === "Buồng phòng").length,
+    housekeeping: employees.filter((emp) => emp.roleName === "Buồng phòng")
+      .length,
     manager: employees.filter((emp) => emp.roleName === "Quản lý").length,
   };
 
@@ -155,7 +164,7 @@ export function EmployeeManagement() {
             Quản lý thông tin nhân viên khách sạn
           </p>
         </div>
-        <AddEmployeeDialog
+        <AddEditEmployeeDialog
           trigger={
             <Button className="bg-gray-700 hover:bg-gray-800 text-white">
               <Plus className="h-4 w-4 mr-2" />
@@ -289,13 +298,18 @@ export function EmployeeManagement() {
                     {calculateAge(employee.dob)} tuổi
                   </TableCell>
                   <TableCell>
-                    <Badge className={roleColors[employee.roleName] || "bg-gray-100 text-gray-800"}>
+                    <Badge
+                      className={
+                        roleColors[employee.roleName] ||
+                        "bg-gray-100 text-gray-800"
+                      }
+                    >
                       {employee.roleName}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <AddEmployeeDialog
+                      <AddEditEmployeeDialog
                         trigger={
                           <Button
                             variant="outline"
@@ -336,7 +350,9 @@ export function EmployeeManagement() {
                               Hủy
                             </AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleDeleteEmployee(employee.userId)}
+                              onClick={() =>
+                                handleDeleteEmployee(employee.userId)
+                              }
                               className="bg-red-600 hover:bg-red-700"
                             >
                               Xóa

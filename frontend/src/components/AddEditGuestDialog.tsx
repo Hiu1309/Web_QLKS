@@ -55,9 +55,7 @@ export function AddEditGuestDialog({
   initial,
 }: AddEditGuestDialogProps) {
   const [open, setOpen] = useState(false);
-  const [day, setDay] = useState<string>("");
-  const [month, setMonth] = useState<string>("");
-  const [year, setYear] = useState<string>("");
+  const [dob, setDob] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     fullName: guest?.name || "",
@@ -78,16 +76,7 @@ export function AddEditGuestDialog({
         idNumber: guest.idNumber,
       });
       // Parse YYYY-MM-DD to day, month, year
-      if (guest.dob) {
-        const [y, m, d] = guest.dob.split("-");
-        setYear(y);
-        setMonth(m);
-        setDay(d);
-      } else {
-        setDay("");
-        setMonth("");
-        setYear("");
-      }
+      setDob(guest.dob || "");
     } else if (mode === "add") {
       setFormData({
         fullName: initial?.fullName || "",
@@ -96,9 +85,7 @@ export function AddEditGuestDialog({
         idType: initial?.idType || "CCCD",
         idNumber: initial?.idNumber || "",
       });
-      setDay("");
-      setMonth("");
-      setYear("");
+      setDob(initial?.dob || "");
     }
   }, [guest, open, mode, initial]);
 
@@ -145,38 +132,17 @@ export function AddEditGuestDialog({
     return "";
   };
 
-  const validateDob = (d: string, m: string, y: string): string => {
-    if (!d || !m || !y) {
+  const validateDob = (dobString: string): string => {
+    if (!dobString) {
       return "Ngày sinh là bắt buộc";
     }
 
-    const dayNum = Number(d);
-    const monthNum = Number(m);
-    const yearNum = Number(y);
-
-    if (
-      Number.isNaN(dayNum) ||
-      Number.isNaN(monthNum) ||
-      Number.isNaN(yearNum)
-    ) {
-      return "Ngày sinh phải là số";
-    }
-
-    const currentYear = new Date().getFullYear();
-    if (yearNum < 1900 || yearNum > currentYear) {
-      return "Năm sinh không hợp lệ";
-    }
-    if (monthNum < 1 || monthNum > 12) {
-      return "Tháng sinh không hợp lệ";
-    }
-    const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
-    if (dayNum < 1 || dayNum > daysInMonth) {
+    const birthDate = new Date(dobString);
+    if (Number.isNaN(birthDate.getTime())) {
       return "Ngày sinh không hợp lệ";
     }
 
-    const birthDate = new Date(yearNum, monthNum - 1, dayNum);
     const today = new Date();
-
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
     if (
@@ -210,7 +176,7 @@ export function AddEditGuestDialog({
       newErrors.email = emailError;
     }
 
-    const dobError = validateDob(day, month, year);
+    const dobError = validateDob(dob);
     if (dobError) {
       newErrors.dob = dobError;
     }
@@ -246,7 +212,7 @@ export function AddEditGuestDialog({
       fullName: formData.fullName.trim(),
       email: formData.email.trim() || null,
       phone: formData.phone.trim(),
-      dob: `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
+      dob: dob,
       idType: formData.idType,
       idNumber: formData.idNumber.trim(),
     };
@@ -275,9 +241,7 @@ export function AddEditGuestDialog({
           idType: "CCCD",
           idNumber: "",
         });
-        setDay("");
-        setMonth("");
-        setYear("");
+        setDob("");
         setErrors({});
       } else if (mode === "edit" && guest) {
         const res = await fetch(
@@ -317,24 +281,6 @@ export function AddEditGuestDialog({
           : "Cập nhật khách hàng thất bại";
       toast.error(errorMessage);
     }
-  };
-
-  // Format date from YYYY-MM-DD to DD/MM/YYYY for display
-  const formatDateForDisplay = (dateStr: string): string => {
-    if (!dateStr) return "";
-    const [year, month, day] = dateStr.split("-");
-    return `${day}/${month}/${year}`;
-  };
-
-  // Parse DD/MM/YYYY to YYYY-MM-DD for storage
-  const parseDateForStorage = (dateStr: string): string => {
-    if (!dateStr) return "";
-    const parts = dateStr.split("/");
-    if (parts.length === 3) {
-      const [day, month, year] = parts;
-      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-    }
-    return dateStr;
   };
 
   return (
@@ -442,53 +388,22 @@ export function AddEditGuestDialog({
             )}
           </div>
 
-          {/* Date of Birth - Ngày/Tháng/Năm */}
+          {/* Date of Birth */}
           <div className="space-y-2">
             <Label className="text-gray-800 flex items-center gap-2">
               <CalendarIcon className="h-4 w-4" />
               Ngày Sinh *
             </Label>
-            <div className="grid grid-cols-3 gap-3">
-              <Input
-                type="number"
-                min="1"
-                max="31"
-                value={day}
-                onChange={(e) => setDay(e.target.value)}
-                placeholder="Ngày"
-                className={`border-gray-300 focus:border-gray-500 ${
-                  errors.dob ? "border-red-500" : ""
-                }`}
-              />
-              <Input
-                type="number"
-                min="1"
-                max="12"
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                placeholder="Tháng"
-                className={`border-gray-300 focus:border-gray-500 ${
-                  errors.dob ? "border-red-500" : ""
-                }`}
-              />
-              <Input
-                type="number"
-                min="1900"
-                max={new Date().getFullYear()}
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                placeholder="Năm"
-                className={`border-gray-300 focus:border-gray-500 ${
-                  errors.dob ? "border-red-500" : ""
-                }`}
-              />
-            </div>
-            {day && month && year && (
-              <p className="text-xs text-gray-500">
-                Ngày đã chọn: {day.padStart(2, "0")}/{month.padStart(2, "0")}/
-                {year}
-              </p>
-            )}
+            <Input
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+              className={`border-gray-300 focus:border-gray-500 ${
+                errors.dob ? "border-red-500" : ""
+              }`}
+              placeholder="Chọn ngày sinh"
+            />
             {errors.dob && (
               <div className="flex items-center gap-2 text-red-600 text-sm">
                 <AlertCircle className="h-4 w-4" />
