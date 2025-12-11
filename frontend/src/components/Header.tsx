@@ -69,7 +69,7 @@ export function Header({
         <div className="flex items-center justify-between">
           {/* Logo Section */}
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => onViewChange('dashboard')}
             className="flex items-center gap-3 hover:opacity-70 transition-opacity cursor-pointer"
           >
             <div className="p-2.5 bg-gray-900 rounded-xl">
