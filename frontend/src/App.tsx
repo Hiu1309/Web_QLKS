@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "./components/Header";
 import { Dashboard } from "./components/Dashboard";
 import { RoomManagement } from "./components/RoomManagement";
@@ -28,10 +29,17 @@ interface User {
   role: string;
 }
 
-export default function App() {
-  const [currentView, setCurrentView] = useState<ViewType>("dashboard");
+function AppContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const currentView = location.pathname.split('/')[1] as ViewType || 'dashboard';
+
+  const handleViewChange = (view: ViewType) => {
+    navigate(`/${view}`);
+  };
 
   const handleLogin = async (username: string, password: string) => {
     try {
@@ -58,11 +66,11 @@ export default function App() {
         // Navigate based on role
         const roleName = data.user.roleName?.toLowerCase();
         if (roleName === "lễ tân" || roleName === "receptionist") {
-          setCurrentView("reservations");
+          navigate("/reservations");
         } else if (roleName === "buồng phòng" || roleName === "housekeeping") {
-          setCurrentView("rooms");
+          navigate("/rooms");
         } else {
-          setCurrentView("dashboard");
+          navigate("/dashboard");
         }
 
         toast.success(
@@ -86,55 +94,56 @@ export default function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setCurrentUser(null);
-    setCurrentView("dashboard");
+    navigate("/login");
     toast.info("Đã đăng xuất", {
       description: "Hẹn gặp lại bạn!",
     });
   };
 
-  const renderCurrentView = () => {
-    switch (currentView) {
-      case "dashboard":
-        return <Dashboard onNavigate={setCurrentView} />;
-      case "rooms":
-        return <RoomManagement />;
-      case "reservations":
-        return <ReservationManagement currentUser={currentUser || undefined} />;
-      case "invoices":
-        return <InvoiceManagement />;
-      case "guests":
-        return <GuestManagement />;
-      case "services":
-        return <ServicesManagement />;
-      case "employees":
-        return <EmployeeManagement />;
-      default:
-        return <Dashboard />;
-    }
-  };
-
   // Show authentication screens if not logged in
-  if (!isAuthenticated) {
-    return (
-      <>
-        <Login onLogin={handleLogin} />
-        <Toaster />
-      </>
-    );
+  if (!isAuthenticated && location.pathname !== '/login') {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (isAuthenticated && location.pathname === '/login') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
     <>
-      <div className="flex flex-col min-h-screen bg-white">
-        <Header
-          currentView={currentView}
-          onViewChange={setCurrentView}
-          onLogout={handleLogout}
-          currentUser={currentUser || undefined}
-        />
-        <main className="flex-1">{renderCurrentView()}</main>
-      </div>
+      {location.pathname === '/login' ? (
+        <Login onLogin={handleLogin} />
+      ) : (
+        <div className="flex flex-col min-h-screen bg-white">
+          <Header
+            currentView={currentView}
+            onViewChange={handleViewChange}
+            onLogout={handleLogout}
+            currentUser={currentUser || undefined}
+          />
+          <main className="flex-1">
+            <Routes>
+              <Route path="/dashboard" element={<Dashboard onNavigate={handleViewChange} />} />
+              <Route path="/rooms" element={<RoomManagement />} />
+              <Route path="/reservations" element={<ReservationManagement currentUser={currentUser || undefined} />} />
+              <Route path="/invoices" element={<InvoiceManagement />} />
+              <Route path="/guests" element={<GuestManagement />} />
+              <Route path="/services" element={<ServicesManagement />} />
+              <Route path="/employees" element={<EmployeeManagement />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </main>
+        </div>
+      )}
       <Toaster />
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }
